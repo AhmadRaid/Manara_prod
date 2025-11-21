@@ -3,7 +3,6 @@ import { InjectModel } from '@nestjs/mongoose';
 import { Model, Types } from 'mongoose';
 import * as bcrypt from 'bcryptjs';
 import { JwtService } from '@nestjs/jwt';
-import { NewPasswordDto } from './dto/new-password.dto';
 import { Provider } from 'src/schemas/serviceProvider.schema';
 
 @Injectable()

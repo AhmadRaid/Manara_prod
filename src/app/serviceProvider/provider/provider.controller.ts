@@ -8,7 +8,7 @@ import {
   Param,
   Query,
 } from '@nestjs/common';
-import { ProviderService } from './provider.service';
+import { ProviderService } from 'src/app/serviceProvider/provider/provider.service';
 
 @Controller('providers')
 export class ProviderController {

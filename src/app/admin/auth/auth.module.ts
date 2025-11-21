@@ -14,8 +14,8 @@ import { AdminAuthController } from './auth.controller';
 import { AuthService } from 'src/app/userDashboard/auth/auth.service';
 import { AuthController } from 'src/app/userDashboard/auth/auth.controller';
 import { AdminAuthService } from './auth.service';
-import { AuthProviderService } from 'src/app/serviceprovider/auth/auth.service';
-import { AuthProviderController } from 'src/app/serviceprovider/auth/auth.controller';
+import { AuthProviderService } from 'src/app/serviceProvider/auth/auth.service';
+import { AuthProviderController } from 'src/app/serviceProvider/auth/auth.controller';
 import { Provider, ProviderSchema } from 'src/schemas/serviceProvider.schema';
 
 @Global()

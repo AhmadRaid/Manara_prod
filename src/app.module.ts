@@ -21,7 +21,7 @@ import { InqueryModule } from './app/admin/inquery/inquery.module';
 import { ActivityLogModule } from './app/admin/activityLog/activity-log.module';
 import { DashboardModule } from './app/userDashboard/dashboard/dashboard.module';
 import { ChatModule } from './app/userDashboard/chat/chat.module';
-import { ProviderModule } from './app/serviceprovider/provider/provider.module';
+import { ProviderModule } from './app/serviceProvider/provider/provider.module';
 
 @Module({
   imports: [
