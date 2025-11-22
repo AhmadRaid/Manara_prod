@@ -1,42 +1,33 @@
-import {
-  Controller,
-  Post,
-  Get,
-  Param,
-  NotFoundException,
-} from '@nestjs/common';
-import { User } from 'src/schemas/user.schema';
-import { Reward } from 'src/schemas/reward.schema';
+import { Controller, Get, Query, Req, UseGuards } from '@nestjs/common';
 import { LoyaltyPointUserService } from './loyaltyService.service';
+import { AuthRequest } from 'src/interfaces/AuthRequest';
+import { JwtAuthGuard } from 'src/common/guards/jwtAuthGuard';
 
 @Controller('loyalty')
+@UseGuards(JwtAuthGuard)
 export class LoyaltyPointUserController {
   constructor(private readonly loyaltyService: LoyaltyPointUserService) {}
 
-  // ➕ إضافة نقاط عبر طريقة كسب
-  @Post('add/:userId/method/:methodId')
-  async addPointsByMethod(
-    @Param('userId') userId: string,
-    @Param('methodId') methodId: string,
-  ): Promise<User> {
-    return this.loyaltyService.addPointsByMethod(userId, methodId);
+  @Get('data')
+  async getUserLoyaltyData(@Req() req: AuthRequest) {
+    return this.loyaltyService.getUserLoyaltyData(req.user._id);
   }
 
-  // 💸 استبدال نقاط بمكافأة
-  @Post('replace/:userId/reward/:rewardId')
-  async replaceReward(
-    @Param('userId') userId: string,
-    @Param('rewardId') rewardId: string,
-  ): Promise<Reward> {
-    return this.loyaltyService.replaceReward(userId, rewardId);
+  @Get('services')
+  async getServicesByLoyaltyLevel(
+    @Req() req: AuthRequest,
+    @Query('lang') lang: 'en' | 'ar' = 'ar',
+  ) {
+    return this.loyaltyService.getServicesByLoyaltyLevel(req.user._id, lang);
   }
 
-  // 📜 جلب سجل النقاط
-  @Get('history/:userId')
-  async getUserHistory(@Param('userId') userId: string) {
-    const history = await this.loyaltyService.getUserHistory(userId);
-    if (!history || history.length === 0)
-      throw new NotFoundException('No points history found for this user');
-    return { userId, totalRecords: history.length, history };
+  @Get('history')
+  async getUserPointsHistory(@Req() req: AuthRequest) {
+    return this.loyaltyService.getUserPointsHistory(req.user._id);
+  }
+
+  @Get('earning-methods')
+  async getEarningMethods(@Query('lang') lang: 'en' | 'ar' = 'ar') {
+    return this.loyaltyService.getEarningMethods(lang);
   }
 }

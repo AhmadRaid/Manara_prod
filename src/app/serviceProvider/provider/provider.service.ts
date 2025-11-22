@@ -1,98 +1,140 @@
-import {
-  Injectable,
-  NotFoundException,
-  BadRequestException,
-} from '@nestjs/common';
+import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model, Types } from 'mongoose';
-import { Provider, ProviderDocument } from 'src/schemas/serviceProvider.schema';
-import * as bcrypt from 'bcryptjs';
-
+import { Provider } from 'src/schemas/serviceProvider.schema';
+import { Service } from 'src/schemas/service.schema';
+import { Order } from 'src/schemas/order.schema';
+import { User } from 'src/schemas/user.schema';
 
 @Injectable()
 export class ProviderService {
   constructor(
     @InjectModel(Provider.name)
     private readonly providerModel: Model<Provider>,
+
+    @InjectModel(Service.name)
+    private readonly serviceModel: Model<Service>,
+
+    @InjectModel(Order.name)
+    private readonly orderModel: Model<Order>,
+
+    @InjectModel(User.name)
+    private readonly userModel: Model<User>,
   ) {}
 
-  // ✅ إنشاء مقدم خدمة جديد
-  async create(createDto: any): Promise<Provider> {
-    const existing = await this.providerModel.findOne({
-      $or: [{ email: createDto.email }, { phone: createDto.phone }],
-    });
-    if (existing) {
-      throw new BadRequestException('Email أو رقم الهاتف مستخدم بالفعل.');
-    }
-
-    const hashedPassword = await bcrypt.hash(createDto.password, 10);
-
-    const provider = new this.providerModel({
-      ...createDto,
-      password: hashedPassword,
-    });
-
-    return provider.save();
-  }
-
-  // ✅ جلب جميع مقدمي الخدمة (مع فلترة بسيطة)
-  async findAll(query?: {
-    status?: string;
-    search?: string;
-    limit?: number;
-    offset?: number;
-  }) {
-    const { status, search, limit = 20, offset = 0 } = query || {};
-    const filter: any = { isDeleted: false };
-
-    if (status) filter.status = status;
-    if (search) {
-      filter.$or = [
-        { fullName: { $regex: search, $options: 'i' } },
-        { email: { $regex: search, $options: 'i' } },
-        { phone: { $regex: search, $options: 'i' } },
-      ];
-    }
-
-    const [data, total] = await Promise.all([
-      this.providerModel
-        .find(filter)
-        .skip(offset)
-        .limit(limit)
-        .sort({ createdAt: -1 })
-        .select('-password')
-        .exec(),
-      this.providerModel.countDocuments(filter),
-    ]);
-
-    return { total, data };
-  }
-
-  // ✅ جلب مقدم خدمة بالمعرّف
-  async findById(id: string): Promise<Provider> {
+  // ================= Dashboard كامل =================
+  async getProviderDashboard(providerId: string) {
     const provider = await this.providerModel
-      .findById(id)
-      .select('-password')
-      .exec();
-    if (!provider) throw new NotFoundException('المقدم غير موجود.');
-    return provider;
-  }
+      .findById(providerId)
+      .select('-password');
 
-  // ✅ تحديث بيانات مقدم الخدمة
-  async update(id: string, updateDto: any): Promise<Provider> {
-    const provider = await this.providerModel.findById(id);
-    if (!provider) throw new NotFoundException('المقدم غير موجود.');
+    if (!provider) throw new NotFoundException('مقدم الخدمة غير موجود.');
 
-    Object.assign(provider, updateDto);
-    return provider.save();
-  }
-
-  // ✅ Soft Delete
-  async softDelete(id: string) {
-    const provider = await this.providerModel.findByIdAndUpdate(id, {
-      isDeleted : true,
+    // الخدمات
+    const services = await this.serviceModel.find({
+      provider: new Types.ObjectId(providerId),
+      isDeleted: false,
     });
 
+    // الطلبات
+    const orders = await this.orderModel
+      .find({ service: { $in: services.map(s => s._id) }, isDeleted: false })
+      .populate('user', 'fullName email phone')
+      .populate('service', 'title');
+
+    // العملاء
+    const clientIds = orders.map(o => o.user._id.toString());
+    const uniqueClientIds = [...new Set(clientIds)];
+
+    const clients = await this.userModel.find({
+      _id: { $in: uniqueClientIds },
+      isDeleted: false,
+    }).select('fullName email phone');
+
+    // الدخل
+    const totalIncome = orders.reduce((sum, o) => sum + o.price, 0);
+
+    return {
+      profile: provider,
+      services,
+      clients,
+      orders,
+      income: {
+        totalIncome,
+        ordersCount: orders.length,
+      },
+    };
+  }
+
+  // ================= جلب الملف الشخصي فقط =================
+  async getProviderProfile(providerId: string) {
+    const provider = await this.providerModel
+      .findById(providerId)
+      .select('-password');
+
+    if (!provider) throw new NotFoundException('مقدم الخدمة غير موجود.');
     return provider;
+  }
+
+  // ================= جلب الخدمات فقط =================
+  async getProviderServices(providerId: string) {
+    return this.serviceModel.find({
+      provider: new Types.ObjectId(providerId),
+      isDeleted: false,
+    });
+  }
+
+  // ================= جلب الطلبات فقط =================
+  async getProviderOrders(providerId: string) {
+    const services = await this.serviceModel.find({
+      provider: new Types.ObjectId(providerId),
+      isDeleted: false,
+    });
+
+    return this.orderModel
+      .find({ service: { $in: services.map(s => s._id) }, isDeleted: false })
+      .populate('user', 'fullName email phone')
+      .populate('service', 'title');
+  }
+
+  // ================= جلب العملاء فقط =================
+  async getProviderClients(providerId: string) {
+    const services = await this.serviceModel.find({
+      provider: new Types.ObjectId(providerId),
+      isDeleted: false,
+    });
+
+    const orders = await this.orderModel.find({
+      service: { $in: services.map(s => s._id) },
+      isDeleted: false,
+    }).populate('user', 'fullName email phone');
+
+    const clientIds = orders.map(o => o.user._id.toString());
+    const uniqueClientIds = [...new Set(clientIds)];
+
+    return this.userModel.find({
+      _id: { $in: uniqueClientIds },
+      isDeleted: false,
+    }).select('fullName email phone');
+  }
+
+  // ================= جلب الدخل فقط =================
+  async getProviderIncome(providerId: string) {
+    const services = await this.serviceModel.find({
+      provider: new Types.ObjectId(providerId),
+      isDeleted: false,
+    });
+
+    const orders = await this.orderModel.find({
+      service: { $in: services.map(s => s._id) },
+      isDeleted: false,
+    });
+
+    const totalIncome = orders.reduce((sum, o) => sum + o.price, 0);
+
+    return {
+      totalIncome,
+      ordersCount: orders.length,
+    };
   }
 }

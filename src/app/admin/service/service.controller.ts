@@ -24,7 +24,6 @@ import { JwtAuthAdminGuard } from 'src/common/guards/jwtAuthAdminGuard';
 
 @Controller('admin/services')
 @UseGuards(JwtAuthAdminGuard)
-
 export class ServiceAdminController {
   constructor(private readonly serviceService: ServiceAdminService) {}
 

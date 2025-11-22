@@ -1,9 +1,12 @@
-import { Controller, Get, Post, Body, Param, Delete, Patch } from '@nestjs/common';
+import { Controller, Get, Post, Body, Param, Delete, Patch, UseGuards } from '@nestjs/common';
 import { CreateFreeConsultationDto } from './dto/create-freeConsultation.dto';
 import { UpdateFreeConsultationDto } from './dto/update-freeConsultation.dto';
 import { FreeUserDashboardConsultationService } from './freeConsultation.service';
+import { JwtAuthGuard } from 'src/common/guards/jwtAuthGuard';
 
-@Controller('admin/free-consultations')
+@Controller('userDashboard/free-consultations')
+@UseGuards(JwtAuthGuard)
+
 export class FreeuserDashboardConsultationController {
   constructor(private readonly freeConsultationService: FreeUserDashboardConsultationService) {}
 

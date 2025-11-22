@@ -18,10 +18,13 @@ export class User extends Document {
   @Prop({ type: [Types.ObjectId], ref: 'Order', default: [] })
   orderId: Types.ObjectId[];
 
-  @Prop({ type: Number, default:50 })
+  @Prop({ type: Number, default: 0 })
   loyaltyPoints: number;
 
-  @Prop({ default:"beginner" })
+  @Prop({ type: Number, default: 0 })
+  loyaltyPointsUsed: number;
+
+  @Prop({ default: 'Golden' })
   loyaltyPointsLevel: string;
 
   @Prop({ default: false })

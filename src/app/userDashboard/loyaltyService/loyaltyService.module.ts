@@ -16,6 +16,7 @@ import {
 } from 'src/schemas/earningMethod.schema';
 import { LoyaltyPointUserController } from './loyaltyService.controller';
 import { LoyaltyPointUserService } from './loyaltyService.service';
+import { Service, ServiceSchema } from 'src/schemas/service.schema';
 
 @Module({
   imports: [
@@ -25,6 +26,7 @@ import { LoyaltyPointUserService } from './loyaltyService.service';
       { name: LoyaltyLevel.name, schema: LoyaltyLevelSchema },
       { name: Reward.name, schema: RewardSchema },
       { name: EarningMethod.name, schema: EarningMethodSchema },
+      { name: Service.name, schema: ServiceSchema }, 
     ]),
   ],
   providers: [LoyaltyPointUserService],

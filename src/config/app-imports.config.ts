@@ -21,6 +21,7 @@ import { ChatModule } from 'src/app/userDashboard/chat/chat.module';
 import { EarningMethodModule } from 'src/app/admin/earningMethod/earningMethod.module';
 import { LoyaltyPointModule } from 'src/app/userDashboard/loyaltyService/loyaltyService.module';
 import { RewardModule } from 'src/app/admin/reward/reward.module';
+import { ProviderModule } from 'src/app/serviceProvider/provider/provider.module';
 
 export const AppImports = [
   ScheduleModule.forRoot(),
@@ -44,4 +45,5 @@ export const AppImports = [
   EarningMethodModule,
   LoyaltyPointModule,
   RewardModule,
+  ProviderModule
 ];

@@ -37,9 +37,6 @@ export class CreateServiceDto {
   @IsMongoId()
   readonly categoryId: string;
 
-  @IsNotEmpty()
-  @IsMongoId()
-  readonly providerId: string;
 
   @IsOptional() @IsNumber() readonly GeneralRate?: number;
   @IsOptional() @IsNumber() readonly rate?: number;

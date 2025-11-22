@@ -8,13 +8,17 @@ import {
   Patch,
   Delete,
   Query,
+  UseGuards,
 } from '@nestjs/common';
 import { UpdateBlogDto } from './dto/update-blog.dto';
 import { BloguserDashboardService } from './blogs.service';
 import { CreateBlogDto } from './dto/create-blog.dto';
 import { FindAllQuery } from 'src/interfaces/FindAllQuery';
+import { JwtAuthGuard } from 'src/common/guards/jwtAuthGuard';
 
 @Controller('userDashboard/blogs')
+@UseGuards(JwtAuthGuard)
+
 export class BlogsuserDashboardController {
   constructor(private readonly blogAdminService: BloguserDashboardService) {}
 

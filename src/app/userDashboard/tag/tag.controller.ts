@@ -10,12 +10,16 @@ import {
   Delete,
   HttpStatus,
   HttpCode,
+  UseGuards,
 } from '@nestjs/common';
 import { CreateTagDto } from './dto/create-tag.dto';
 import { UpdateTagDto } from './dto/update-tag.dto';
 import { TagUserDashboardService } from './tag.service';
+import { JwtAuthGuard } from 'src/common/guards/jwtAuthGuard';
 
 @Controller('userDashboard/tags') // مسار خاص بلوحة التحكم (Admin)
+@UseGuards(JwtAuthGuard)
+
 export class TagAdminController {
   constructor(private readonly tagAdminService: TagUserDashboardService) {}
 

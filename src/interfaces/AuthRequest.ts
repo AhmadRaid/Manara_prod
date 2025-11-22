@@ -10,5 +10,8 @@ export interface AuthRequest extends Request {
   user: {
     _id?: string
   };
+  provider: {
+    _id?: string
+  };
   lang: 'ar' | 'en'
 }

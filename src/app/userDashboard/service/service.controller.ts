@@ -9,13 +9,17 @@ import {
   UseInterceptors,
   UploadedFile,
   Query,
+  UseGuards,
 } from '@nestjs/common';
 import { UpdateServiceDto } from './dto/update-service.dto';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { generateUploadConfig } from 'src/config/upload.file.config';
 import { ServiceUserDashboardService } from './service.service';
+import { JwtAuthGuard } from 'src/common/guards/jwtAuthGuard';
 
 @Controller('userDashboard/services')
+@UseGuards(JwtAuthGuard)
+
 export class ServiceUserDashboardController {
   constructor(private readonly serviceService: ServiceUserDashboardService) {}
 

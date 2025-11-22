@@ -21,9 +21,8 @@ export class PointsHistory extends Document {
   @Prop({ type: Types.ObjectId, ref: 'Reward', required: false })
   rewardId?: Types.ObjectId;
 
-  
-      @Prop({ type: Boolean, default: false })
-    isDeleted: boolean;
+  @Prop({ type: Boolean, default: false })
+  isDeleted: boolean;
 }
 
 export const PointsHistorySchema = SchemaFactory.createForClass(PointsHistory);

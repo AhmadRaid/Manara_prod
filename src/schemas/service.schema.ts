@@ -34,6 +34,9 @@ export class Service {
   @Prop({ type: String, required: true })
   icon: string;
 
+  @Prop({ type: String, default: 'normal' })
+  level: string;
+
   @Prop({ required: true, type: String })
   ministry: string;
 
@@ -44,7 +47,7 @@ export class Service {
   })
   categoryId: Types.ObjectId;
 
-  @Prop({ type: Types.ObjectId, ref: 'Provider',required:true })
+  @Prop({ type: Types.ObjectId, ref: 'Provider', required: true })
   provider: Types.ObjectId;
 
   @Prop({ type: Number, default: 0 })
@@ -72,9 +75,9 @@ export class Service {
   image: string;
 
   @Prop({ type: Number, default: 0 })
-  countOrders: number; 
+  countOrders: number;
 
- @Prop({ type: [FeatureServiceSchema], default: [],required:true })
+  @Prop({ type: [FeatureServiceSchema], default: [], required: true })
   featureServices: {
     title: { en: string; ar: string };
     subtitle: { en: string; ar: string };

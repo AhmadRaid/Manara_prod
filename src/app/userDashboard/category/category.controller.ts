@@ -9,12 +9,16 @@ import {
   Query,
   HttpStatus,
   HttpCode,
+  UseGuards,
 } from '@nestjs/common';
 import { CreateCategoryDto } from './dto/create-category.dto';
 import { UpdateCategoryDto } from './dto/update-category.dto';
 import { CategoryuserDashboardService } from './category.service';
+import { JwtAuthGuard } from 'src/common/guards/jwtAuthGuard';
 
 @Controller('userDashboard/categories') 
+@UseGuards(JwtAuthGuard)
+
 export class CategoryuserDashboardController {
   constructor(private readonly categoryService: CategoryuserDashboardService) {}
 

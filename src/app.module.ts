@@ -30,7 +30,7 @@ import { ProviderModule } from './app/serviceProvider/provider/provider.module';
       serveRoot: '/uploads',
     }),
     ...AppImports,
-    ProviderModule,
+    
 
   ],
   controllers: [AppController],
