@@ -256,68 +256,6 @@ export class ServiceAdminService {
         },
       }, // 5. الإسقاط النهائي وتطبيق الترجمة على كل الحقول المتعددة اللغات
 
-      {
-        $project: {
-          ...translatedMultilingualFields, // title و description
-          _id: 1,
-          icon: 1,
-          ministry: 1,
-          GeneralRate: 1,
-          rate: 1,
-          countRate: 1,
-          loyaltyPoints: 1,
-          countUsers: 1,
-          price: 1,
-          MinCompletionDays: 1,
-          MaxCompletionDays: 1,
-          image: 1,
-          countOrders: 1,
-          vedio: 1,
-          status: 1,
-          createdAt: 1,
-          usersCount: 1,
-          isMostRequested: 1, // ترجمة حقول المصفوفات المتعددة اللغات
-
-          featureServices: {
-            $map: {
-              input: '$featureServices',
-              as: 'item',
-              in: {
-                title: {
-                  $ifNull: [`$$item.title.${langKey}`, `$$item.title.ar`],
-                },
-                subtitle: {
-                  $ifNull: [`$$item.subtitle.${langKey}`, `$$item.subtitle.ar`],
-                },
-                icon: '$$item.icon',
-              },
-            },
-          },
-          filesNeeded: {
-            $map: {
-              input: '$filesNeeded',
-              as: 'item',
-              in: {
-                $ifNull: [`$$item.${langKey}`, `$$item.ar`],
-              },
-            },
-          },
-          stepGetService: {
-            $map: {
-              input: '$stepGetService',
-              as: 'item',
-              in: {
-                $ifNull: [`$$item.${langKey}`, `$$item.ar`],
-              },
-            },
-          }, // تضمين تفاصيل الفئة المترجمة
-          category: {
-            _id: '$category._id',
-            name: '$category.name',
-            icon: '$category.icon',
-          },
-        },
-      },
     ];
 
     const service = await this.serviceModel
