@@ -176,9 +176,9 @@ export class BlogAdminService {
       {
         $project: {
           _id: 1,
-          title: { $ifNull: [`$title.${lang}`, `$title.ar`] },
-          description: { $ifNull: [`$description.${lang}`, `$description.ar`] },
-          content: { $ifNull: [`$content.${lang}`, `$content.ar`] },
+          title: 1,
+          description: 1,
+          content: 1,
           image: 1,
           estimateReadTime: 1,
           feature: 1,
