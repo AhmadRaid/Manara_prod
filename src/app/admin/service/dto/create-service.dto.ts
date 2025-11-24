@@ -67,6 +67,11 @@ export class CreateServiceDto {
   @IsNumber()
   readonly MaxCompletionDays: Number;
 
+  
+  @IsNotEmpty()
+  @IsString()
+  readonly time: String;
+
   @IsOptional()
   @IsString()
   readonly image?: string;

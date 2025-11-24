@@ -71,6 +71,10 @@ export class Service {
   @Prop({ type: Number, required: true })
   MaxCompletionDays: Number;
 
+  
+  @Prop({ type: String, required: true })
+  time: string;
+
   @Prop({ type: String, required: true })
   image: string;
 

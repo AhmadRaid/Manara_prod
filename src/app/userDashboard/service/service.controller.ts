@@ -23,14 +23,14 @@ import { JwtAuthGuard } from 'src/common/guards/jwtAuthGuard';
 export class ServiceUserDashboardController {
   constructor(private readonly serviceService: ServiceUserDashboardService) {}
 
-  @UseInterceptors(FileInterceptor('image', generateUploadConfig('services')))
-  @Post()
-  create(
-    @Body() createServiceDto: any,
-    @UploadedFile() image: Express.Multer.File,
-  ) {
-    return this.serviceService.create(createServiceDto, image);
-  }
+  // @UseInterceptors(FileInterceptor('image', generateUploadConfig('services')))
+  // @Post()
+  // create(
+  //   @Body() createServiceDto: any,
+  //   @UploadedFile() image: Express.Multer.File,
+  // ) {
+  //   return this.serviceService.create(createServiceDto, image);
+  // }
 
 @Get()
   findAll(

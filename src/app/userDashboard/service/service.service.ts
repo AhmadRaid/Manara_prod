@@ -12,30 +12,30 @@ export class ServiceUserDashboardService {
     @InjectModel(Service.name) private serviceModel: Model<Service>,
   ) {}
 
-  async create(
-    createServiceDto: CreateServiceDto,
-    image: Express.Multer.File,
-  ): Promise<Service> {
-    const baseUrl = process.env.BASE_URL;
+  // async create(
+  //   createServiceDto: CreateServiceDto,
+  //   image: Express.Multer.File,
+  // ): Promise<Service> {
+  //   const baseUrl = process.env.BASE_URL;
 
-    const serviceData = {
-      ...createServiceDto,
-      categoryId: new Types.ObjectId(createServiceDto.categoryId as any),
-      provider: new Types.ObjectId(createServiceDto.providerId as any),
-      image: image
-        ? `https://backend-uh6k.onrender.com/${image.path}`
-        : createServiceDto.image || null,
-      featureServices:
-        createServiceDto.featureServices?.map((featureServicesData) => ({
-          title: featureServicesData.title,
-          subtitle: featureServicesData.subtitle,
-          icon: featureServicesData.icon,
-        })) || [],
-    };
+  //   const serviceData = {
+  //     ...createServiceDto,
+  //     categoryId: new Types.ObjectId(createServiceDto.categoryId as any),
+  //     provider: new Types.ObjectId(createServiceDto.providerId as any),
+  //     image: image
+  //       ? `https://backend-uh6k.onrender.com/${image.path}`
+  //       : createServiceDto.image || null,
+  //     featureServices:
+  //       createServiceDto.featureServices?.map((featureServicesData) => ({
+  //         title: featureServicesData.title,
+  //         subtitle: featureServicesData.subtitle,
+  //         icon: featureServicesData.icon,
+  //       })) || [],
+  //   };
 
-    const createdService = new this.serviceModel(serviceData);
-    return createdService.save();
-  }
+  //   const createdService = new this.serviceModel(serviceData);
+  //   return createdService.save();
+  // }
 
   async findAll({ limit, offset, search }: FindAllQuery): Promise<Service[]> {
     const query: any = {};

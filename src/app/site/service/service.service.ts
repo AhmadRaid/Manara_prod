@@ -90,6 +90,7 @@ export class ServiceSiteService {
         $project: {
           _id: 1,
           icon: 1,
+                    time: 1,
 
           // الحقول المترجمة
           title: translatedFields.title,
@@ -150,7 +151,7 @@ export class ServiceSiteService {
     ];
 
     // 3. بناء حقول الإسقاط النهائية (finalProjection)
-    let finalProjection: any = { _id: 1, icon: 1 };
+    let finalProjection: any = { _id: 1, icon: 1, time: 1 };
 
     if (selectFields) {
       const requestedFields = selectFields
@@ -407,6 +408,7 @@ export class ServiceSiteService {
           countRate: 1,
           usersCount: 1, // ✅ تضمين الحقل الجديد
           status: 1,
+          time: 1,
 
           // ترجمة المصفوفات
           featureServices: {
