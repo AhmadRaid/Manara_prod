@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { BadRequestException, ForbiddenException, Injectable } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model, Types } from 'mongoose';
 import { CreateServiceDto } from './dto/create-service.dto';
@@ -13,19 +13,47 @@ export class ServiceServiceProviderService {
 
   async create(
     createServiceDto: CreateServiceDto,
-    image: Express.Multer.File,
     providerId: string,
   ): Promise<Service> {
     const serviceData = {
       ...createServiceDto,
       categoryId: new Types.ObjectId(createServiceDto.categoryId as any),
       provider: new Types.ObjectId(providerId),
-      image: image
-        ? `https://backend-uh6k.onrender.com/${image.path}`
-        : createServiceDto.image || null,
     };
 
     const createdService = new this.serviceModel(serviceData);
     return createdService.save();
   }
+
+  async update(
+    serviceId: string,
+    updateDto: any,
+    providerId: string,
+  ): Promise<Service> {
+    const service = await this.serviceModel.findOneAndUpdate(
+      {
+        _id: new Types.ObjectId(serviceId),
+        provider: new Types.ObjectId(providerId),
+      }, 
+      { $set: updateDto },
+      { new: true },
+    );
+    if (!service) throw new BadRequestException('Service not found');
+    return service;
+  }
+
+async delete(serviceId: string, providerId: string) { // ✨ استقبال providerId
+    const result = await this.serviceModel.findOneAndDelete({
+      _id: new Types.ObjectId(serviceId),
+      provider: new Types.ObjectId(providerId), // ✨ شرط التحقق من الملكية
+    });
+
+    if (!result) {
+      throw new ForbiddenException(
+        'Service not found or you do not have permission to delete this service.',
+      );
+    }
+
+    return { message: 'Service deleted successfully' };
+}
 }

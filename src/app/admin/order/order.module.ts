@@ -15,7 +15,7 @@ import { ActivityLogModule } from 'src/app/admin/activityLog/activity-log.module
 import { Counter, CounterSchema } from 'src/schemas/counter.schema';
 import { OrderAdminController } from './order.controller';
 import { OrderAdminService } from './order.service';
-
+import { AzureStorageService } from 'src/app/site/azure-storage/azure-storage.service';
 
 @Module({
   imports: [
@@ -43,7 +43,12 @@ import { OrderAdminService } from './order.service';
     OrderSiteController,
     OrderUserDashboardController,
   ],
-  providers: [OrderAdminService, OrderSiteService, OrderUserDashboardService],
+  providers: [
+    OrderAdminService,
+    OrderSiteService,
+    OrderUserDashboardService,
+    AzureStorageService,
+  ],
   exports: [OrderSiteService],
 })
 export class OrderModule {}

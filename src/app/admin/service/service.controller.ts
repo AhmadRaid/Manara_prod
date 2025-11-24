@@ -21,14 +21,18 @@ import { AuthRequest } from 'src/interfaces/AuthRequest';
 import { CreateServiceDto } from './dto/create-service.dto';
 import { ParseJsonPipe } from 'src/common/pipes/parse-json-fields.pipe';
 import { JwtAuthAdminGuard } from 'src/common/guards/jwtAuthAdminGuard';
+import { AzureStorageService } from 'src/app/site/azure-storage/azure-storage.service';
 
 @Controller('admin/services')
 @UseGuards(JwtAuthAdminGuard)
 export class ServiceAdminController {
-  constructor(private readonly serviceService: ServiceAdminService) {}
+  constructor(
+    private readonly serviceService: ServiceAdminService,
+    private readonly azureStorageService: AzureStorageService,
+  ) {}
 
   @Post()
-  @UseInterceptors(FileInterceptor('image', generateUploadConfig('services')))
+  @UseInterceptors(FileInterceptor('image'))
   async create(@UploadedFile() image: Express.Multer.File, @Body() body: any) {
     // 1. الحقول التي هي كائنات مفردة متعددة اللغات (تأتي كسلسلة JSON)
     const singleJsonFields = ['title', 'description']; // 2. الحقول التي هي مصفوفات متعددة اللغات (تأتي كمصفوفة من سلاسل JSON)
@@ -106,7 +110,24 @@ export class ServiceAdminController {
       }
     } // إرجاع الـ Body المنظف ليتم التحقق منه بواسطة Class-Validator
 
-    return this.serviceService.create(body as CreateServiceDto, image);
+    let imageUrl: string = body.image || null; // إذا كان هناك رابط سابق
+
+    if (image) {
+      imageUrl = await this.azureStorageService.uploadFile(
+        image.buffer,
+        image.originalname,
+        image.mimetype,
+      );
+    }
+
+    // 💡 التعديل هنا: إنشاء نسخة جديدة قابلة للتعديل
+    const finalDto: CreateServiceDto = {
+      ...(body as CreateServiceDto), // نسخ جميع الخصائص
+      image: imageUrl, // تعيين قيمة 'image' في الكائن الجديد
+    };
+
+    // 💡 تمرير الكائن الجديد
+    return this.serviceService.create(finalDto);
   }
 
   @Get()
@@ -138,84 +159,105 @@ export class ServiceAdminController {
     return this.serviceService.findById(id, lang); // ✅ تمرير الـ id و الـ lang
   }
 
-@Patch(':serviceId')
-    @UseInterceptors(FileInterceptor('image', generateUploadConfig('services'))) // 💡 قد تحتاج إلى FileInterceptor إذا سمحت برفع صورة مع التحديث
-    async update(
-        @Param('serviceId') serviceId: string,
-        @UploadedFile() image: Express.Multer.File, // 💡 استلام ملف الصورة إذا وُجد
-        @Body() body: any // استلام الجسم كـ 'any' للمعالجة اليدوية
-    ) {
-        // تحديد الحقول التي تتطلب تحويلاً
-        const singleJsonFields = ['title', 'description'];
-        const jsonArrayFields = ['featureServices', 'filesNeeded', 'stepGetService'];
-        const numberFields = [
-            'GeneralRate', 'rate', 'countRate', 'loyaltyPoints',
-            'countUsers', 'price', 'MinCompletionDays', 'MaxCompletionDays',
-            'countOrders',
-        ];
+  @Patch(':serviceId')
+  @UseInterceptors(FileInterceptor('image'))
+  async update(
+    @Param('serviceId') serviceId: string,
+    @UploadedFile() image: Express.Multer.File, // 💡 استلام ملف الصورة إذا وُجد
+    @Body() body: any, // استلام الجسم كـ 'any' للمعالجة اليدوية
+  ) {
+    // تحديد الحقول التي تتطلب تحويلاً
+    const singleJsonFields = ['title', 'description'];
+    const jsonArrayFields = [
+      'featureServices',
+      'filesNeeded',
+      'stepGetService',
+    ];
+    const numberFields = [
+      'GeneralRate',
+      'rate',
+      'countRate',
+      'loyaltyPoints',
+      'countUsers',
+      'price',
+      'MinCompletionDays',
+      'MaxCompletionDays',
+      'countOrders',
+    ];
 
-        // --- 1. معالجة حقول JSON الفردية ---
-        for (const field of singleJsonFields) {
-            let value = body[field];
-            if (typeof value === 'string') {
-                try {
-                    body[field] = JSON.parse(value);
-                } catch (e) {
-                    throw new BadRequestException(`Invalid JSON format for field: ${field}`);
-                }
-            }
+    // --- 1. معالجة حقول JSON الفردية ---
+    for (const field of singleJsonFields) {
+      let value = body[field];
+      if (typeof value === 'string') {
+        try {
+          body[field] = JSON.parse(value);
+        } catch (e) {
+          throw new BadRequestException(
+            `Invalid JSON format for field: ${field}`,
+          );
         }
-
-        // --- 2. معالجة حقول المصفوفات JSON ---
-        for (const field of jsonArrayFields) {
-            let value = body[field];
-            if (!value) continue;
-
-            if (Array.isArray(value)) {
-                try {
-                    body[field] = value.map(item => {
-                        if (typeof item === 'string') {
-                            return JSON.parse(item);
-                        }
-                        return item;
-                    });
-                } catch (e) {
-                    throw new BadRequestException(`Invalid JSON element inside array for field: ${field}`);
-                }
-            } else if (typeof value === 'string') {
-                 // تغطية في حال إرسال المصفوفة كـ JSON String واحد
-                try {
-                    const parsed = JSON.parse(value);
-                    body[field] = Array.isArray(parsed) ? parsed : [parsed];
-                } catch {
-                     // فشل في التحليل
-                }
-            }
-        }
-
-        // --- 3. معالجة حقول الأرقام ---
-        for (const field of numberFields) {
-            let value = body[field];
-            if (!value) continue;
-
-            if (Array.isArray(value)) {
-                value = value[0];
-            }
-
-            if (typeof value === 'string') {
-                const parsedNumber = parseFloat(value);
-                if (!isNaN(parsedNumber)) {
-                    body[field] = parsedNumber;
-                }
-            }
-        }
-
-        if (image) { 
-            body.image = `https://backend-uh6k.onrender.com/${image.path}`;
-        }
-        
-        return this.serviceService.update(serviceId, body);
+      }
     }
+
+    // --- 2. معالجة حقول المصفوفات JSON ---
+    for (const field of jsonArrayFields) {
+      let value = body[field];
+      if (!value) continue;
+
+      if (Array.isArray(value)) {
+        try {
+          body[field] = value.map((item) => {
+            if (typeof item === 'string') {
+              return JSON.parse(item);
+            }
+            return item;
+          });
+        } catch (e) {
+          throw new BadRequestException(
+            `Invalid JSON element inside array for field: ${field}`,
+          );
+        }
+      } else if (typeof value === 'string') {
+        // تغطية في حال إرسال المصفوفة كـ JSON String واحد
+        try {
+          const parsed = JSON.parse(value);
+          body[field] = Array.isArray(parsed) ? parsed : [parsed];
+        } catch {
+          // فشل في التحليل
+        }
+      }
+    }
+
+    // --- 3. معالجة حقول الأرقام ---
+    for (const field of numberFields) {
+      let value = body[field];
+      if (!value) continue;
+
+      if (Array.isArray(value)) {
+        value = value[0];
+      }
+
+      if (typeof value === 'string') {
+        const parsedNumber = parseFloat(value);
+        if (!isNaN(parsedNumber)) {
+          body[field] = parsedNumber;
+        }
+      }
+    }
+    let imageUrl: string | undefined;
+    if (image) {
+      imageUrl = await this.azureStorageService.uploadFile(
+        image.buffer,
+        image.originalname,
+        image.mimetype, // ✅ تمرير نوع الملف لحل مشكلة التنزيل
+      );
+    }
+
+    // ✅ الحل: إنشاء نسخة جديدة إذا كان هناك تعديل في الصورة
+    const finalUpdateDto = imageUrl ? { ...body, image: imageUrl } : body;
+
+    return this.serviceService.update(serviceId, finalUpdateDto);
+  }
 
   @Delete(':serviceId')
   delete(@Param('serviceId') serviceId: string) {

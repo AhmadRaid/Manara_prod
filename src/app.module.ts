@@ -22,6 +22,7 @@ import { ActivityLogModule } from './app/admin/activityLog/activity-log.module';
 import { DashboardModule } from './app/userDashboard/dashboard/dashboard.module';
 import { ChatModule } from './app/userDashboard/chat/chat.module';
 import { ProviderModule } from './app/serviceProvider/provider/provider.module';
+import { AzureStorageService } from './app/site/azure-storage/azure-storage.service';
 
 @Module({
   imports: [
@@ -42,6 +43,7 @@ import { ProviderModule } from './app/serviceProvider/provider/provider.module';
         firebaseAdminInit();
       },
     },
+    AzureStorageService,
     // {
     //   provide: APP_GUARD,
     //   useClass: ThrottlerGuard,

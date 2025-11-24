@@ -18,11 +18,16 @@ import { OrderSiteService } from './order.service';
 import { CreateOrderStep1Dto } from './dto/create-order-step1.dto';
 import { UpdateOrderPaymentDto } from './dto/update-order-payment.dto';
 import { Types } from 'mongoose';
+import { AzureStorageService } from '../azure-storage/azure-storage.service';
+import { memoryStorage } from 'multer';
 
 @Controller('orders')
 @UseGuards(JwtAuthGuard)
 export class OrderSiteController {
-  constructor(private readonly orderService: OrderSiteService) {}
+  constructor(
+    private readonly orderService: OrderSiteService,
+    private readonly azureStorageService: AzureStorageService,
+  ) {}
 
   // 📝 إنشاء طلب جديد
   @Post()
@@ -44,24 +49,42 @@ export class OrderSiteController {
 
   // 📄 رفع المستندات
   @Patch(':orderId/documents')
-  @UseInterceptors(FileFieldsInterceptor([{ name: 'documents', maxCount: 10 }]))
+@UseInterceptors(
+  FileFieldsInterceptor([{ name: 'documents', maxCount: 10 }], {
+    storage: memoryStorage(), // ✅ الحل
+  }),
+)
   async updateOrderStep3Documents(
     @Param('orderId') orderId: string,
     @UploadedFiles() files: { documents?: Express.Multer.File[] },
   ) {
     const documents = files.documents;
+    console.log('1111', documents);
+
     if (!documents || documents.length === 0) {
       throw new BadRequestException('يجب رفع مستند واحد على الأقل.');
     }
 
-    // ✅ إنشاء كائنات المستندات الجديدة
-    const documentObjects = documents.map((file) => ({
-      id: new Types.ObjectId().toString(),
-      url: `https://your-storage-bucket.com/uploads/${file.filename}`,
-      status: 'pending',
-      date: new Date(),
-      name: file.originalname,
-    }));
+    // 🌟 التعديل لرفع الملفات إلى Azure 🌟
+    const documentObjects = await Promise.all(
+      documents.map(async (file) => {
+        // 2. رفع الملف إلى Azure وتلقي الـ URL
+        const fileUrl = await this.azureStorageService.uploadFile(
+          file.buffer, // محتوى الملف
+          file.originalname, // اسم الملف
+          file.mimetype, // نوع الملف
+        );
+
+        // 3. إنشاء كائن المستند بالـ URL الفعلي من Azure
+        return {
+          id: new Types.ObjectId().toString(),
+          url: fileUrl, // 👈 تم استبداله بالـ URL الفعلي
+          status: 'pending',
+          date: new Date(),
+          name: file.originalname,
+        };
+      }),
+    );
 
     return this.orderService.updateOrderStep3Documents(
       orderId,

@@ -13,18 +13,12 @@ export class ServiceAdminService {
 
   async create(
     createServiceDto: CreateServiceDto,
-    image: Express.Multer.File,
   ): Promise<Service> {
-    const baseUrl = process.env.BASE_URL;
-    // تحويل categoryId إلى ObjectId وإضافة مسار الصورة
+
     const serviceData = {
       ...createServiceDto,
       categoryId: new Types.ObjectId(createServiceDto.categoryId as any),
       provider: new Types.ObjectId(createServiceDto.providerId as any),
-
-      image: image
-        ? `https://backend-uh6k.onrender.com/${image.path}`
-        : createServiceDto.image || null,
     };
 
     const createdService = new this.serviceModel(serviceData);
