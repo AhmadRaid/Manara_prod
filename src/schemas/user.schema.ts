@@ -16,7 +16,7 @@ export class User extends Document {
   password: string;
 
   @Prop({ type: [Types.ObjectId], ref: 'Order', default: [] })
-  orderId: Types.ObjectId[];
+  order: Types.ObjectId[];
 
   @Prop({ type: Number, default: 0 })
   loyaltyPoints: number;

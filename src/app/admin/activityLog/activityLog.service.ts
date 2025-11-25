@@ -27,9 +27,6 @@ export class ActivityLogAdminService {
   }): Promise<any[]> {
     const matchStage: Record<string, any> = {};
 
-    console.log('11111',userId,role);
-    
-
     if (userId && role) {
       if (role == 'user') {
         matchStage.user = new Types.ObjectId(userId);

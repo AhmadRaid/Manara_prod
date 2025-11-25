@@ -12,6 +12,7 @@ import { CreateOrderStep1Dto } from './dto/create-order-step1.dto';
 import { UpdateOrderPaymentDto } from './dto/update-order-payment.dto';
 import { ActivityLogUserService } from '../../userDashboard/activity-log/activity-log.service';
 import { PointsHistory } from 'src/schemas/pointsHistory.schema';
+import { User } from 'src/schemas/user.schema';
 
 interface Counter {
   _id: string;
@@ -37,6 +38,7 @@ export class OrderSiteService {
     @InjectConnection() private readonly connection: Connection, // 👈 لإدارة الترانزاكشن
     @InjectModel('PointsHistory')
     private readonly pointsHistoryModel: Model<PointsHistory>,
+    @InjectModel(User.name) private readonly userModel: Model<User>, // ✅ أضف @InjectModel
   ) {}
 
   async createOrderStep1(
@@ -126,6 +128,13 @@ export class OrderSiteService {
           orderNumber: createdOrder.orderNumber,
           status: createdOrder.status,
         },
+      );
+
+      // 🔹 إضافة معرف الطلب إلى مصفوفة orders في المستخدم
+      await this.userModel.findByIdAndUpdate(
+        userId,
+        { $push: { order: createdOrder._id } },
+        { new: true }, // لإرجاع المستخدم بعد التحديث إذا احتجت
       );
 
       return createdOrder;
