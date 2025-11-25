@@ -37,6 +37,22 @@ export class ActivityLogUserService {
 
     return logEntry;
   }
+
+    async logActivityProvider(
+    provider: Types.ObjectId,
+    title: DualLangContent,
+    description: DualLangContent,
+    metadata: Record<string, any> = {},
+  ): Promise<ActivityLog> {
+    const logEntry = await this.activityLogModel.create({
+      provider,
+      title, // تخزين كائن {en: '...', ar: '...'}
+      description, // تخزين كائن {en: '...', ar: '...'}
+      metadata,
+    });
+
+    return logEntry;
+  }
   async getLatestActivities(
     userId: Types.ObjectId | string,
     limit: number = 10,

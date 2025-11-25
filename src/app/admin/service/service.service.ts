@@ -4,17 +4,17 @@ import { Model, Types } from 'mongoose';
 import { CreateServiceDto } from './dto/create-service.dto';
 import { FindAllQuery } from 'src/interfaces/FindAllQuery';
 import { Service } from 'src/schemas/service.schema';
+import { ActivityLogUserService } from 'src/app/userDashboard/activity-log/activity-log.service';
 
 @Injectable()
 export class ServiceAdminService {
   constructor(
     @InjectModel(Service.name) private serviceModel: Model<Service>,
+        private readonly activityLogService: ActivityLogUserService, // ✅ إضافة هذا
+
   ) {}
 
-  async create(
-    createServiceDto: CreateServiceDto,
-  ): Promise<Service> {
-
+  async create(createServiceDto: CreateServiceDto) {
     const serviceData = {
       ...createServiceDto,
       categoryId: new Types.ObjectId(createServiceDto.categoryId as any),
@@ -22,7 +22,21 @@ export class ServiceAdminService {
     };
 
     const createdService = new this.serviceModel(serviceData);
-    return createdService.save();
+    const savedService = await createdService.save();
+
+    await this.activityLogService.logActivityProvider(
+      savedService.provider, // مزود الخدمة
+      { ar: 'إنشاء خدمة جديدة', en: 'New Service Created' },
+      {
+        ar: `تم إنشاء خدمة جديدة بعنوان "${savedService.title.ar}" بسعر ${savedService.price} ر.س.`,
+        en: `A new service "${savedService.title.en}" has been created with price ${savedService.price} SAR.`,
+      },
+      {
+        serviceId: savedService._id,
+        categoryId: savedService.categoryId,
+        price: savedService.price,
+      },
+    );
   }
 
   async findAll({ limit, offset }: FindAllQuery, lang = 'ar', search?: string) {
@@ -249,7 +263,6 @@ export class ServiceAdminService {
           },
         },
       }, // 5. الإسقاط النهائي وتطبيق الترجمة على كل الحقول المتعددة اللغات
-
     ];
 
     const service = await this.serviceModel

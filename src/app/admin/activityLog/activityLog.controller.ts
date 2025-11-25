@@ -11,7 +11,8 @@ export class ActivityLogAdminController {
     @Query('role') role?: 'user' | 'provider',
     @Query('limit') limit?: number,
     @Query('offset') offset?: number,
+  @Query('lang') lang?: 'ar' | 'en', // 👈 اللغة المطلوبة
   ) {
-    return this.activityService.getAllUserActivities({ userId, role, limit, offset });
+    return this.activityService.getAllUserActivities({ userId, role, limit, offset },lang);
   }
 }

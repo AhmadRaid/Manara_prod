@@ -9,11 +9,13 @@ import { Model, Types } from 'mongoose';
 import { CreateServiceDto } from './dto/create-service.dto';
 import { Express } from 'express';
 import { Service } from 'src/schemas/service.schema';
+import { ActivityLogUserService } from 'src/app/userDashboard/activity-log/activity-log.service';
 
 @Injectable()
 export class ServiceServiceProviderService {
   constructor(
     @InjectModel(Service.name) private readonly serviceModel: Model<Service>,
+    private readonly activityLogService: ActivityLogUserService, // ✅ إضافة هذا
   ) {}
 
   async create(
@@ -27,11 +29,27 @@ export class ServiceServiceProviderService {
     };
 
     const createdService = new this.serviceModel(serviceData);
-    return createdService.save();
+    const savedService = await createdService.save();
+
+    // ✅ تسجيل النشاط بعد إنشاء الخدمة
+    await this.activityLogService.logActivityProvider(
+      savedService.provider, // مزود الخدمة
+      { ar: 'إنشاء خدمة جديدة', en: 'New Service Created' },
+      {
+        ar: `تم إنشاء خدمة جديدة بعنوان "${savedService.title.ar}" بسعر ${savedService.price} ر.س.`,
+        en: `A new service "${savedService.title.en}" has been created with price ${savedService.price} SAR.`,
+      },
+      {
+        serviceId: savedService._id,
+        categoryId: savedService.categoryId,
+        price: savedService.price,
+      },
+    );
+
+    return savedService;
   }
 
   async findById(id: string, lang = 'ar', providerId: string): Promise<any> {
-    const fallbackLang = 'en';
     const langKey = lang === 'en' ? 'en' : 'ar'; // 1. تحديد منطق الترجمة للحقول متعددة اللغات المفردة
 
     const translatedMultilingualFields = {
