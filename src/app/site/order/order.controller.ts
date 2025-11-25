@@ -43,23 +43,24 @@ export class OrderSiteController {
   async updateOrderStep2Payment(
     @Param('orderId') orderId: string,
     @Body() dto: UpdateOrderPaymentDto,
+        @Req() req: AuthRequest,
+
   ) {
-    return this.orderService.updateOrderStep2Payment(orderId, dto);
+    return this.orderService.updateOrderStep2Payment(orderId, dto,req.user._id);
   }
 
   // 📄 رفع المستندات
   @Patch(':orderId/documents')
-@UseInterceptors(
-  FileFieldsInterceptor([{ name: 'documents', maxCount: 10 }], {
-    storage: memoryStorage(), // ✅ الحل
-  }),
-)
+  @UseInterceptors(
+    FileFieldsInterceptor([{ name: 'documents', maxCount: 10 }], {
+      storage: memoryStorage(), // ✅ الحل
+    }),
+  )
   async updateOrderStep3Documents(
     @Param('orderId') orderId: string,
     @UploadedFiles() files: { documents?: Express.Multer.File[] },
   ) {
     const documents = files.documents;
-    console.log('1111', documents);
 
     if (!documents || documents.length === 0) {
       throw new BadRequestException('يجب رفع مستند واحد على الأقل.');

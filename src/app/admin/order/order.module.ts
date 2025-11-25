@@ -16,6 +16,7 @@ import { Counter, CounterSchema } from 'src/schemas/counter.schema';
 import { OrderAdminController } from './order.controller';
 import { OrderAdminService } from './order.service';
 import { AzureStorageService } from 'src/app/site/azure-storage/azure-storage.service';
+import { PointsHistory, PointsHistorySchema } from 'src/schemas/pointsHistory.schema';
 
 @Module({
   imports: [
@@ -23,6 +24,7 @@ import { AzureStorageService } from 'src/app/site/azure-storage/azure-storage.se
       { name: Order.name, schema: OrderSchema },
       { name: Service.name, schema: ServiceSchema },
       { name: 'Counter', schema: CounterSchema },
+      { name: PointsHistory.name, schema: PointsHistorySchema },
     ]),
     MulterModule.register({
       storage: diskStorage({

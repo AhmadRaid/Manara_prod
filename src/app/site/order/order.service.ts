@@ -11,6 +11,7 @@ import { Service } from 'src/schemas/service.schema';
 import { CreateOrderStep1Dto } from './dto/create-order-step1.dto';
 import { UpdateOrderPaymentDto } from './dto/update-order-payment.dto';
 import { ActivityLogUserService } from '../../userDashboard/activity-log/activity-log.service';
+import { PointsHistory } from 'src/schemas/pointsHistory.schema';
 
 interface Counter {
   _id: string;
@@ -34,6 +35,8 @@ export class OrderSiteService {
     @InjectModel(Service.name) private serviceModel: Model<Service>,
     private readonly activityLogService: ActivityLogUserService,
     @InjectConnection() private readonly connection: Connection, // 👈 لإدارة الترانزاكشن
+    @InjectModel('PointsHistory')
+    private readonly pointsHistoryModel: Model<PointsHistory>,
   ) {}
 
   async createOrderStep1(
@@ -137,6 +140,7 @@ export class OrderSiteService {
   async updateOrderStep2Payment(
     orderId: string,
     dto: UpdateOrderPaymentDto,
+    userId: string,
   ): Promise<Order> {
     const order = await this.orderModel.findById(orderId).exec();
     if (!order) throw new NotFoundException('الطلب غير موجود.');
@@ -185,6 +189,34 @@ export class OrderSiteService {
         paymentMethod: dto.paymentMethod,
       },
     );
+
+    // 🔹 منح نقاط للمستخدم عند إنشاء الطلب
+    const earnedPoints = Math.floor(service.price * 0.05); // مثال: 5% من سعر الخدمة
+
+    if (earnedPoints > 0) {
+      await this.pointsHistoryModel.create({
+        user: new Types.ObjectId(userId),
+        type: 'earn',
+        points: earnedPoints,
+        source: 'إنشاء طلب جديد',
+        serviceId: service._id,
+      });
+
+      // يمكنك أيضًا تسجيلها في سجل النشاط
+      await this.activityLogService.logActivity(
+        updatedOrder.user,
+        { ar: 'كسب نقاط', en: 'Points Earned' },
+        {
+          ar: `تم كسب ${earnedPoints} نقطة عند إنشاء الطلب رقم ${updatedOrder.orderNumber}.`,
+          en: `${earnedPoints} points earned for creating order ${updatedOrder.orderNumber}.`,
+        },
+        {
+          orderId: updatedOrder._id,
+          orderNumber: updatedOrder.orderNumber,
+          paymentMethod: dto.paymentMethod,
+        },
+      );
+    }
 
     return updatedOrder;
   }
@@ -289,39 +321,38 @@ export class OrderSiteService {
   }
 
   // 📄 جلب جميع المستندات الخاصة بطلب معين
-async getOrderDocuments(orderId: string): Promise<
-  {
-    id: string;
-    name: string;
-    url: string;
-    status: string;
-    date: Date;
-    notes?: string;
-  }[]
-> {
-  const order = await this.orderModel
-    .findById(orderId)
-    .select('documentsUrl orderNumber user') // فقط الحقول المطلوبة
-    .exec();
-
-  if (!order) throw new NotFoundException('الطلب غير موجود.');
-
-  // ✅ تسجيل عملية القراءة (اختياري)
-  await this.activityLogService.logActivity(
-    order.user,
-    { ar: 'عرض المستندات', en: 'View Documents' },
+  async getOrderDocuments(orderId: string): Promise<
     {
-      ar: `تم عرض المستندات الخاصة بالطلب رقم ${order.orderNumber}.`,
-      en: `Documents viewed for order ${order.orderNumber}.`,
-    },
-    {
-      orderId: order._id,
-      orderNumber: order.orderNumber,
-      documentCount: order.documentsUrl.length,
-    },
-  );
+      id: string;
+      name: string;
+      url: string;
+      status: string;
+      date: Date;
+      notes?: string;
+    }[]
+  > {
+    const order = await this.orderModel
+      .findById(orderId)
+      .select('documentsUrl orderNumber user') // فقط الحقول المطلوبة
+      .exec();
 
-  return order.documentsUrl || [];
-}
+    if (!order) throw new NotFoundException('الطلب غير موجود.');
 
+    // ✅ تسجيل عملية القراءة (اختياري)
+    await this.activityLogService.logActivity(
+      order.user,
+      { ar: 'عرض المستندات', en: 'View Documents' },
+      {
+        ar: `تم عرض المستندات الخاصة بالطلب رقم ${order.orderNumber}.`,
+        en: `Documents viewed for order ${order.orderNumber}.`,
+      },
+      {
+        orderId: order._id,
+        orderNumber: order.orderNumber,
+        documentCount: order.documentsUrl.length,
+      },
+    );
+
+    return order.documentsUrl || [];
+  }
 }

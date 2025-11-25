@@ -7,8 +7,11 @@ const MultilingualSchema = {
 @Schema({ timestamps: true })
 export class ActivityLog extends Document {
   // معرف المستخدم الذي قام بالحدث أو تأثر به
-  @Prop({ type: Types.ObjectId, ref: 'User', required: true })
+  @Prop({ type: Types.ObjectId, ref: 'User' })
   user: Types.ObjectId; 
+
+  @Prop({ type: Types.ObjectId, ref: 'Provider' })
+  provider: Types.ObjectId;
 
   @Prop({ type: MultilingualSchema, required: true })
   title: { en: string; ar: string };

@@ -26,28 +26,48 @@ export class ActivityLogAdminService {
     offset?: number;
   }): Promise<any[]> {
     const matchStage: Record<string, any> = {};
-    if (userId) {
-      matchStage.user = new Types.ObjectId(userId);
+
+    console.log('11111',userId,role);
+    
+
+    if (userId && role) {
+      if (role == 'user') {
+        matchStage.user = new Types.ObjectId(userId);
+      } else if (role == 'provider') {
+        matchStage.provider = new Types.ObjectId(userId);
+      }
+    } else if (userId) {
+      // إذا لم يُرسل role، حاول البحث في كلا الحقلين
+      matchStage.$or = [
+        { user: new Types.ObjectId(userId) },
+        { provider: new Types.ObjectId(userId) },
+      ];
     }
 
     const pipeline: any[] = [
       { $match: matchStage },
+
+      // دمج بيانات المستخدم
       {
         $lookup: {
-          from: 'users', // 👈 اسم مجموعة users
+          from: 'users',
           localField: 'user',
           foreignField: '_id',
           as: 'userData',
         },
       },
+
+      // دمج بيانات المزود
       {
         $lookup: {
-          from: 'serviceproviders', // 👈 اسم مجموعة serviceProviders
-          localField: 'user',
+          from: 'serviceproviders',
+          localField: 'provider',
           foreignField: '_id',
           as: 'providerData',
         },
       },
+
+      // اختيار أي حقل موجود للعرض
       {
         $addFields: {
           user: {
@@ -59,21 +79,12 @@ export class ActivityLogAdminService {
           },
         },
       },
+
       { $project: { userData: 0, providerData: 0 } },
-      {
-        $sort: { createdAt: -1 },
-      },
+      { $sort: { createdAt: -1 } },
       { $skip: offset },
       { $limit: limit },
     ];
-
-    if (role) {
-      pipeline.unshift({
-        $match: {
-          'user.role': role,
-        },
-      });
-    }
 
     return await this.activityModel.aggregate(pipeline);
   }
