@@ -84,7 +84,7 @@ export class ActivityLogAdminService {
     const activities = await this.activityModel.aggregate(pipeline);
 
     // ✅ تنسيق النتيجة بناءً على اللغة
-    const formatted = activities.map((activity) => {
+    const finalFormatted = activities.map((activity) => {
       const formatted = { ...activity };
 
       if (activity.title && typeof activity.title === 'object') {
@@ -99,12 +99,6 @@ export class ActivityLogAdminService {
       return formatted;
     });
 
-    // ✅ إرجاع الاستجابة النهائية بنفس الشكل المطلوب
-    return {
-      status: 'success',
-      code: 200,
-      data: formatted,
-      message: 'تمت العملية بنجاح',
-    };
+    return finalFormatted;
   }
 }
