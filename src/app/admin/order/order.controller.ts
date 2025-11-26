@@ -13,7 +13,6 @@ import { JwtAuthAdminGuard } from 'src/common/guards/jwtAuthAdminGuard';
 
 @Controller('admin/orders')
 @UseGuards(JwtAuthAdminGuard)
-
 export class OrderAdminController {
   constructor(private readonly orderService: OrderAdminService) {}
 
@@ -47,6 +46,32 @@ export class OrderAdminController {
       documentId,
       status,
       notes,
+    );
+  }
+
+  @Get('user/:userId')
+  findOrdersByUser(
+    @Param('userId') userId: string,
+    @Query('limit') limit?: number,
+    @Query('offset') offset?: number,
+    @Query('lang') lang?: string,
+  ) {
+    return this.orderService.findByUserOrProvider(
+      { userId, limit, offset },
+      lang,
+    );
+  }
+
+  @Get('provider/:providerId')
+  findOrdersByProvider(
+    @Param('providerId') providerId: string,
+    @Query('limit') limit?: number,
+    @Query('offset') offset?: number,
+    @Query('lang') lang?: string,
+  ) {
+    return this.orderService.findByUserOrProvider(
+      { providerId, limit, offset },
+      lang,
     );
   }
 }

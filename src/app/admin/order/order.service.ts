@@ -4,7 +4,7 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
-import { Model } from 'mongoose';
+import { Model, Types } from 'mongoose';
 import { ActivityLogUserService } from 'src/app/userDashboard/activity-log/activity-log.service';
 import { Order } from 'src/schemas/order.schema';
 
@@ -168,5 +168,123 @@ export class OrderAdminService {
     );
 
     return updatedOrder;
+  }
+
+  // 📦 داخل order.service.ts
+  async findByUserOrProvider(
+    {
+      userId,
+      providerId,
+      limit = 10,
+      offset = 0,
+    }: {
+      userId?: string;
+      providerId?: string;
+      limit?: number;
+      offset?: number;
+    },
+    lang: string = 'ar',
+  ): Promise<{ data: any[]; total: number }> {
+    const safeLimit = isNaN(Number(limit)) ? 10 : Number(limit);
+    const safeOffset = isNaN(Number(offset)) ? 0 : Number(offset);
+
+    const pipeline: any[] = [];
+
+    // ✅ الشرط الأساسي
+    const match: any = { isDeleted: false };
+
+    if (userId) {
+      match.user = new Types.ObjectId(userId);
+    }
+
+    if (providerId) {
+      // 🔗 جلب الطلبات التي تخص الخدمات التابعة لهذا المزود
+      const providerObjectId = new Types.ObjectId(providerId);
+      pipeline.push({
+        $lookup: {
+          from: 'services',
+          localField: 'service',
+          foreignField: '_id',
+          as: 'service',
+        },
+      });
+      pipeline.push({
+        $match: {
+          'service.provider': providerObjectId,
+        },
+      });
+    } else {
+      pipeline.push({ $match: match });
+    }
+
+    // 🧩 العلاقات
+    pipeline.push(
+      {
+        $lookup: {
+          from: 'users',
+          localField: 'user',
+          foreignField: '_id',
+          as: 'user',
+        },
+      },
+      { $unwind: { path: '$user', preserveNullAndEmptyArrays: true } },
+      {
+        $lookup: {
+          from: 'services',
+          localField: 'service',
+          foreignField: '_id',
+          as: 'service',
+        },
+      },
+      { $unwind: { path: '$service', preserveNullAndEmptyArrays: true } },
+    );
+
+    // 🌐 اختيار اللغة
+    const langKey = lang === 'en' ? 'en' : 'ar';
+    pipeline.push({
+      $addFields: {
+        'service.title': `$service.title.${langKey}`,
+        'service.description': `$service.description.${langKey}`,
+      },
+    });
+
+    // 📦 pagination + count
+    pipeline.push({
+      $facet: {
+        data: [
+          { $sort: { createdAt: -1 } },
+          { $skip: safeOffset },
+          { $limit: safeLimit },
+          {
+            $project: {
+              _id: 1,
+              orderNumber: 1,
+              price: 1,
+              status: 1,
+              clientStage: 1,
+              orderDate: 1,
+              notes: 1,
+              createdAt: 1,
+              'user._id': 1,
+              'user.fullName': 1,
+              'user.email': 1,
+              'user.phone': 1,
+              'service._id': 1,
+              'service.title': 1,
+              'service.description': 1,
+              'service.price': 1,
+              'service.image': 1,
+            },
+          },
+        ],
+        totalCount: [{ $count: 'count' }],
+      },
+    });
+
+    const result = await this.orderModel.aggregate(pipeline).exec();
+    const data = result[0]?.data || [];
+    const total = result[0]?.totalCount?.[0]?.count || 0;
+
+    return { data, total };
   }
 }
