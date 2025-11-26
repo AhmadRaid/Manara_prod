@@ -31,10 +31,14 @@ export class Blog {
   @Prop({ type: Types.ObjectId, ref: 'Admin', required: true })
   createdBy: Types.ObjectId;
 
-  @Prop({ type: [{ type: Types.ObjectId, ref: 'Tag' }], default: [],required: true })
+  @Prop({
+    type: [{ type: Types.ObjectId, ref: 'Tag' }],
+    default: [],
+    required: true,
+  })
   tags: Types.ObjectId[];
 
-  @Prop({ type: String,required: true })
+  @Prop({ type: String, required: true })
   estimateReadTime: string;
 
   @Prop({ type: Boolean, default: false })
@@ -42,6 +46,9 @@ export class Blog {
 
   @Prop({ type: Number, default: 0 })
   countRead: number;
+
+  @Prop({ type: String, required: true })
+  vedio: string;
 
   @Prop({ type: Boolean, default: false })
   isDeleted: boolean;

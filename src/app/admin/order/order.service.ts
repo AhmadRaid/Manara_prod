@@ -1,12 +1,14 @@
 import {
   BadRequestException,
   Injectable,
-  NotFoundException,
 } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model, Types } from 'mongoose';
 import { ActivityLogUserService } from 'src/app/userDashboard/activity-log/activity-log.service';
 import { Order } from 'src/schemas/order.schema';
+import { User } from 'src/schemas/user.schema';
+import { Service } from 'src/schemas/service.schema';
+import { Provider } from 'src/schemas/serviceProvider.schema';
 
 export interface FindAllQuery {
   limit?: number | string;
@@ -18,26 +20,24 @@ export interface FindAllQuery {
 export class OrderAdminService {
   constructor(
     @InjectModel(Order.name) private readonly orderModel: Model<Order>,
+    @InjectModel(User.name) private readonly userModel: Model<User>,
+    @InjectModel(Provider.name) private readonly providerModel: Model<Provider>,
+    @InjectModel(Service.name) private readonly serviceModel: Model<Service>,
     private readonly activityLogService: ActivityLogUserService,
   ) {}
 
+  // ✅ جلب كل الطلبات مع البحث والفلترة
   async findAll(
     { limit = 10, offset = 0, search = '' }: FindAllQuery,
     lang: string = 'ar',
   ): Promise<{ data: any[]; total: number }> {
-    // ✅ تأكد أن limit و offset أرقام صحيحة
     const safeLimit = isNaN(Number(limit)) ? 10 : Number(limit);
     const safeOffset = isNaN(Number(offset)) ? 0 : Number(offset);
 
-    const pipeline: any[] = [];
+    const pipeline: any[] = [
+      { $match: { isDeleted: false } },
+    ];
 
-    pipeline.push({
-      $match: {
-        isDeleted: false,
-      },
-    });
-
-    // 🔍 البحث
     if (search && search.trim() !== '') {
       pipeline.push({
         $match: {
@@ -50,7 +50,6 @@ export class OrderAdminService {
       });
     }
 
-    // 🔗 العلاقات
     pipeline.push(
       {
         $lookup: {
@@ -72,7 +71,6 @@ export class OrderAdminService {
       { $unwind: { path: '$service', preserveNullAndEmptyArrays: true } },
     );
 
-    // 🌐 اختيار اللغة
     const langKey = lang === 'en' ? 'en' : 'ar';
     pipeline.push({
       $addFields: {
@@ -81,50 +79,25 @@ export class OrderAdminService {
       },
     });
 
-    // 📦 pagination + count
     pipeline.push({
       $facet: {
         data: [
           { $sort: { createdAt: -1 } },
-          { $skip: safeOffset }, // ✅ تم إصلاحها
-          { $limit: safeLimit }, // ✅ تم إصلاحها
-          {
-            $project: {
-              _id: 1,
-              orderNumber: 1,
-              price: 1,
-              status: 1,
-              priority: 1,
-              clientStage: 1,
-              orderDate: 1,
-              notes: 1,
-              createdAt: 1,
-              'user._id': 1,
-              'user.fullName': 1,
-              'user.email': 1,
-              'user.phone': 1,
-              'user.loyaltyPoints': 1,
-              'user.loyaltyPointsLevel': 1,
-              'service._id': 1,
-              'service.title': 1,
-              'service.description': 1,
-              'service.price': 1,
-              'service.image': 1,
-            },
-          },
+          { $skip: safeOffset },
+          { $limit: safeLimit },
         ],
         totalCount: [{ $count: 'count' }],
       },
     });
 
     const result = await this.orderModel.aggregate(pipeline).exec();
-    const data = result[0]?.data || [];
-    const total = result[0]?.totalCount?.[0]?.count || 0;
-
-    return { data, total };
+    return {
+      data: result[0]?.data || [],
+      total: result[0]?.totalCount?.[0]?.count || 0,
+    };
   }
 
-  // 📌 تحديث حالة مستند واحد + كتابة ملاحظات
+  // ✅ تحديث حالة مستند في الطلب
   async updateDocumentStatus(
     orderId: string,
     documentId: string,
@@ -135,89 +108,60 @@ export class OrderAdminService {
     if (!order) throw new BadRequestException('الطلب غير موجود.');
 
     const documents = order.documentsUrl || [];
-    const documentIndex = documents.findIndex((d) => d.id === documentId);
+    const index = documents.findIndex((d) => d.id === documentId);
+    if (index === -1) throw new BadRequestException('المستند غير موجود.');
 
-    if (documentIndex === -1) {
-      throw new BadRequestException('المستند غير موجود في هذا الطلب.');
-    }
+    documents[index].status = status;
+    documents[index].date = new Date();
+    if (notes) documents[index].notes = notes;
 
-    // ✅ تحديث حالة المستند المحدد
-    documents[documentIndex].status = status;
-    documents[documentIndex].date = new Date();
-    if (notes) documents[documentIndex].notes = notes;
-
-    // ✅ تحديث الطلب في قاعدة البيانات
     const updatedOrder = await this.orderModel
       .findByIdAndUpdate(orderId, { documentsUrl: documents }, { new: true })
       .exec();
 
-    // ✅ تسجيل النشاط
     await this.activityLogService.logActivity(
       updatedOrder.user,
       { ar: 'تحديث حالة المستند', en: 'Document Status Updated' },
       {
-        ar: `تم تغيير حالة المستند "${documents[documentIndex].name}" إلى "${status}" في الطلب رقم ${updatedOrder.orderNumber}.`,
-        en: `Document "${documents[documentIndex].name}" status changed to "${status}" in order ${updatedOrder.orderNumber}.`,
+        ar: `تم تغيير حالة المستند "${documents[index].name}" إلى "${status}" في الطلب رقم ${updatedOrder.orderNumber}.`,
+        en: `Document "${documents[index].name}" status changed to "${status}" in order ${updatedOrder.orderNumber}.`,
       },
-      {
-        orderId: updatedOrder._id,
-        orderNumber: updatedOrder.orderNumber,
-        documentId,
-        newStatus: status,
-      },
+      { orderId: updatedOrder._id, orderNumber: updatedOrder.orderNumber },
     );
 
     return updatedOrder;
   }
 
-  // 📦 داخل order.service.ts
+  // ✅ جلب الطلبات حسب المستخدم أو المزود
   async findByUserOrProvider(
-    {
-      userId,
-      providerId,
-      limit = 10,
-      offset = 0,
-    }: {
-      userId?: string;
-      providerId?: string;
-      limit?: number;
-      offset?: number;
-    },
+    { userId, providerId, limit = 10, offset = 0 }: any,
     lang: string = 'ar',
-  ): Promise<{ data: any[]; total: number }> {
+  ) {
     const safeLimit = isNaN(Number(limit)) ? 10 : Number(limit);
     const safeOffset = isNaN(Number(offset)) ? 0 : Number(offset);
 
     const pipeline: any[] = [];
-
-    // ✅ الشرط الأساسي
     const match: any = { isDeleted: false };
 
-    if (userId) {
-      match.user = new Types.ObjectId(userId);
-    }
+    if (userId) match.user = new Types.ObjectId(userId);
 
     if (providerId) {
-      // 🔗 جلب الطلبات التي تخص الخدمات التابعة لهذا المزود
       const providerObjectId = new Types.ObjectId(providerId);
-      pipeline.push({
-        $lookup: {
-          from: 'services',
-          localField: 'service',
-          foreignField: '_id',
-          as: 'service',
+      pipeline.push(
+        {
+          $lookup: {
+            from: 'services',
+            localField: 'service',
+            foreignField: '_id',
+            as: 'service',
+          },
         },
-      });
-      pipeline.push({
-        $match: {
-          'service.provider': providerObjectId,
-        },
-      });
+        { $match: { 'service.provider': providerObjectId } },
+      );
     } else {
       pipeline.push({ $match: match });
     }
 
-    // 🧩 العلاقات
     pipeline.push(
       {
         $lookup: {
@@ -239,7 +183,6 @@ export class OrderAdminService {
       { $unwind: { path: '$service', preserveNullAndEmptyArrays: true } },
     );
 
-    // 🌐 اختيار اللغة
     const langKey = lang === 'en' ? 'en' : 'ar';
     pipeline.push({
       $addFields: {
@@ -248,43 +191,247 @@ export class OrderAdminService {
       },
     });
 
-    // 📦 pagination + count
     pipeline.push({
       $facet: {
         data: [
           { $sort: { createdAt: -1 } },
           { $skip: safeOffset },
           { $limit: safeLimit },
-          {
-            $project: {
-              _id: 1,
-              orderNumber: 1,
-              price: 1,
-              status: 1,
-              clientStage: 1,
-              orderDate: 1,
-              notes: 1,
-              createdAt: 1,
-              'user._id': 1,
-              'user.fullName': 1,
-              'user.email': 1,
-              'user.phone': 1,
-              'service._id': 1,
-              'service.title': 1,
-              'service.description': 1,
-              'service.price': 1,
-              'service.image': 1,
-            },
-          },
         ],
         totalCount: [{ $count: 'count' }],
       },
     });
 
     const result = await this.orderModel.aggregate(pipeline).exec();
-    const data = result[0]?.data || [];
-    const total = result[0]?.totalCount?.[0]?.count || 0;
+    return {
+      data: result[0]?.data || [],
+      total: result[0]?.totalCount?.[0]?.count || 0,
+    };
+  }
 
-    return { data, total };
+  async getUserDashboard(userId: string) {
+    if (!Types.ObjectId.isValid(userId)) {
+      throw new BadRequestException('معرف المستخدم غير صالح.');
+    }
+
+    const pipeline: any[] = [
+      {
+        $match: { _id: new Types.ObjectId(userId), isDeleted: false },
+      },
+      {
+        $lookup: {
+          from: 'orders',
+          localField: '_id',
+          foreignField: 'user',
+          as: 'orders',
+          pipeline: [
+            { $match: { isDeleted: false } },
+            {
+              $lookup: {
+                from: 'services',
+                localField: 'service',
+                foreignField: '_id',
+                as: 'service',
+              },
+            },
+            { $unwind: { path: '$service', preserveNullAndEmptyArrays: true } },
+            {
+              $project: {
+                _id: 1,
+                orderNumber: 1,
+                price: 1,
+                status: 1,
+                clientStage: 1,
+                orderDate: 1,
+                createdAt: 1,
+                'service._id': 1,
+                'service.title': 1,
+                'service.price': 1,
+                'service.image': 1,
+              },
+            },
+          ],
+        },
+      },
+      {
+        $addFields: {
+          stats: {
+            totalOrders: { $size: '$orders' },
+            completedOrders: {
+              $size: {
+                $filter: {
+                  input: '$orders',
+                  as: 'order',
+                  cond: { $eq: ['$$order.status', 'done'] },
+                },
+              },
+            },
+            inProgressOrders: {
+              $size: {
+                $filter: {
+                  input: '$orders',
+                  as: 'order',
+                  cond: { $eq: ['$$order.status', 'in-progress'] },
+                },
+              },
+            },
+            totalSpent: { $sum: '$orders.price' },
+          },
+        },
+      },
+      {
+        $project: {
+          _id: 1,
+          fullName: 1,
+          email: 1,
+          phone: 1,
+          loyaltyPoints: 1,
+          loyaltyPointsUsed: 1,
+          loyaltyPointsLevel: 1,
+          createdAt: 1,
+          stats: 1,
+          orders: 1,
+        },
+      },
+    ];
+
+    const result = await this.userModel.aggregate(pipeline);
+    if (!result.length) throw new BadRequestException('المستخدم غير موجود.');
+    return result[0];
+  }
+
+  async getProviderDashboard(providerId: string) {
+    if (!Types.ObjectId.isValid(providerId)) {
+      throw new BadRequestException('معرف المزود غير صالح.');
+    }
+
+    const pipeline: any[] = [
+      {
+        $match: { _id: new Types.ObjectId(providerId), isDeleted: false },
+      },
+      {
+        $lookup: {
+          from: 'services',
+          localField: '_id',
+          foreignField: 'provider',
+          as: 'services',
+          pipeline: [
+            { $match: { isDeleted: false } },
+            {
+              $lookup: {
+                from: 'orders',
+                localField: '_id',
+                foreignField: 'service',
+                as: 'orders',
+                pipeline: [
+                  { $match: { isDeleted: false } },
+                  {
+                    $lookup: {
+                      from: 'users',
+                      localField: 'user',
+                      foreignField: '_id',
+                      as: 'user',
+                    },
+                  },
+                  { $unwind: { path: '$user', preserveNullAndEmptyArrays: true } },
+                  {
+                    $project: {
+                      _id: 1,
+                      orderNumber: 1,
+                      price: 1,
+                      status: 1,
+                      orderDate: 1,
+                      'user._id': 1,
+                      'user.fullName': 1,
+                      'user.email': 1,
+                      'user.phone': 1,
+                    },
+                  },
+                ],
+              },
+            },
+          ],
+        },
+      },
+      {
+        $addFields: {
+          stats: {
+            totalServices: { $size: '$services' },
+            totalOrders: {
+              $sum: {
+                $map: {
+                  input: '$services',
+                  as: 'service',
+                  in: { $size: '$$service.orders' },
+                },
+              },
+            },
+            completedOrders: {
+              $sum: {
+                $map: {
+                  input: '$services',
+                  as: 'service',
+                  in: {
+                    $size: {
+                      $filter: {
+                        input: '$$service.orders',
+                        as: 'ord',
+                        cond: { $eq: ['$$ord.status', 'done'] },
+                      },
+                    },
+                  },
+                },
+              },
+            },
+            totalRevenue: {
+              $sum: {
+                $map: {
+                  input: '$services',
+                  as: 'service',
+                  in: {
+                    $sum: {
+                      $map: {
+                        input: {
+                          $filter: {
+                            input: '$$service.orders',
+                            as: 'ord',
+                            cond: { $eq: ['$$ord.status', 'done'] },
+                          },
+                        },
+                        as: 'o',
+                        in: '$$o.price',
+                      },
+                    },
+                  },
+                },
+              },
+            },
+          },
+        },
+      },
+      {
+        $project: {
+          _id: 1,
+          fullName: 1,
+          email: 1,
+          phone: 1,
+          status: 1,
+          isVerified: 1,
+          createdAt: 1,
+          stats: 1,
+          services: {
+            _id: 1,
+            title: 1,
+            price: 1,
+            image: 1,
+            orders: 1,
+          },
+        },
+      },
+    ];
+
+    const result = await this.providerModel.aggregate(pipeline);
+    if (!result.length) throw new BadRequestException('المزود غير موجود.');
+    return result[0];
   }
 }

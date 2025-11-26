@@ -72,6 +72,10 @@ export class CreateServiceDto {
   @IsString()
   readonly time: String;
 
+    @IsNotEmpty()
+  @IsString()
+  readonly workingTime: String;
+
   @IsOptional()
   @IsString()
   readonly image?: string;

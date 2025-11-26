@@ -5,6 +5,7 @@ import {
   IsMongoId,
   IsArray,
   ValidateNested,
+  IsNotEmpty,
 } from 'class-validator';
 import { Type } from 'class-transformer';
 
@@ -34,9 +35,12 @@ export class CreateBlogDto {
   @IsString()
   image?: string;
 
+  @IsNotEmpty()
+  @IsString()
+  vedio: string;
+
   @IsMongoId()
   categoryId: string;
-
 
   @IsOptional()
   @IsArray()

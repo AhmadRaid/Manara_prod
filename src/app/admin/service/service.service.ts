@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model, Types } from 'mongoose';
 import { CreateServiceDto } from './dto/create-service.dto';
@@ -216,21 +216,18 @@ export class ServiceAdminService {
     };
   }
 
-  async findById(id: string, lang = 'ar'): Promise<any> {
-    const fallbackLang = 'en';
-    const langKey = lang === 'en' ? 'en' : 'ar'; // 1. تحديد منطق الترجمة للحقول متعددة اللغات المفردة
+ async findById(id: string, lang = 'ar'): Promise<any> {
+    if (!Types.ObjectId.isValid(id)) {
+      throw new BadRequestException('Invalid service ID');
+    }
 
-    const translatedMultilingualFields = {
-      title: { $ifNull: [`$title.${langKey}`, `$title.ar`] },
-      description: {
-        $ifNull: [`$description.${langKey}`, `$description.ar`],
-      },
-    };
+    const langKey = lang === 'en' ? 'en' : 'ar';
 
     const aggregationPipeline: any[] = [
-      { $match: { _id: new Types.ObjectId(id) } }, // 1. مطابقة الخدمة بالـ ID
-      // 2. الربط مع مجموعة الطلبات (orders) لحساب عدد المستخدمين الفريدين
+      // 1️⃣ مطابقة الخدمة المطلوبة
+      { $match: { _id: new Types.ObjectId(id), isDeleted: false } },
 
+      // 2️⃣ الربط مع الطلبات لحساب عدد المستخدمين الفريدين
       {
         $lookup: {
           from: 'orders',
@@ -244,8 +241,9 @@ export class ServiceAdminService {
           usersCount: { $size: { $setUnion: '$serviceOrders.user' } },
         },
       },
-      { $project: { serviceOrders: 0 } }, // 3. الربط مع الفئات (Categories)
+      { $project: { serviceOrders: 0 } },
 
+      // 3️⃣ الربط مع الفئة (category)
       {
         $lookup: {
           from: 'categories',
@@ -254,25 +252,91 @@ export class ServiceAdminService {
           as: 'category',
         },
       },
-      { $unwind: { path: '$category', preserveNullAndEmptyArrays: true } }, // 4. تطبيق الترجمة على اسم الفئة
-
+      { $unwind: { path: '$category', preserveNullAndEmptyArrays: true } },
       {
         $addFields: {
           'category.name': {
             $ifNull: [`$category.name.${langKey}`, `$category.name.ar`],
           },
         },
-      }, // 5. الإسقاط النهائي وتطبيق الترجمة على كل الحقول المتعددة اللغات
+      },
+
+      // 4️⃣ الربط مع المزود (provider)
+      {
+        $lookup: {
+          from: 'providers',
+          localField: 'provider',
+          foreignField: '_id',
+          as: 'provider',
+          pipeline: [
+            {
+              $project: {
+                _id: 1, // فقط الـ _id بدون أي تفاصيل إضافية
+              },
+            },
+          ],
+        },
+      },
+      { $unwind: { path: '$provider', preserveNullAndEmptyArrays: true } },
+
+      // 5️⃣ إعادة تسمية provider._id إلى providerId
+      {
+        $addFields: {
+          providerId: '$provider._id',
+        },
+      },
+
+      // 6️⃣ حذف كائن provider نفسه (نبقي فقط providerId)
+      {
+        $project: {
+          provider: 0,
+        },
+      },
+
+      // 7️⃣ تطبيق الترجمة على الحقول المتعددة اللغات
+      {
+        $addFields: {
+          title: { $ifNull: [`$title.${langKey}`, `$title.ar`] },
+          description: { $ifNull: [`$description.${langKey}`, `$description.ar`] },
+          'featureServices.title': {
+            $map: {
+              input: '$featureServices',
+              as: 'fs',
+              in: { $ifNull: [`$$fs.title.${langKey}`, `$$fs.title.ar`] },
+            },
+          },
+          'featureServices.subtitle': {
+            $map: {
+              input: '$featureServices',
+              as: 'fs',
+              in: { $ifNull: [`$$fs.subtitle.${langKey}`, `$$fs.subtitle.ar`] },
+            },
+          },
+          filesNeeded: {
+            $map: {
+              input: '$filesNeeded',
+              as: 'file',
+              in: { $ifNull: [`$$file.${langKey}`, `$$file.ar`] },
+            },
+          },
+          stepGetService: {
+            $map: {
+              input: '$stepGetService',
+              as: 'step',
+              in: { $ifNull: [`$$step.${langKey}`, `$$step.ar`] },
+            },
+          },
+        },
+      },
     ];
 
-    const service = await this.serviceModel
-      .aggregate(aggregationPipeline)
-      .exec();
-    if (!service || service.length === 0) {
+    const result = await this.serviceModel.aggregate(aggregationPipeline).exec();
+
+    if (!result || result.length === 0) {
       throw new NotFoundException('Service not found');
     }
 
-    return service[0];
+    return result[0];
   }
 
   async update(id: string, data: any): Promise<Service> {

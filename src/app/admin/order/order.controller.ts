@@ -56,10 +56,7 @@ export class OrderAdminController {
     @Query('offset') offset?: number,
     @Query('lang') lang?: string,
   ) {
-    return this.orderService.findByUserOrProvider(
-      { userId, limit, offset },
-      lang,
-    );
+    return this.orderService.findByUserOrProvider({ userId, limit, offset }, lang);
   }
 
   @Get('provider/:providerId')
@@ -69,9 +66,18 @@ export class OrderAdminController {
     @Query('offset') offset?: number,
     @Query('lang') lang?: string,
   ) {
-    return this.orderService.findByUserOrProvider(
-      { providerId, limit, offset },
-      lang,
-    );
+    return this.orderService.findByUserOrProvider({ providerId, limit, offset }, lang);
+  }
+
+  // ✅ Dashboard for User
+  @Get('user/:userId/dashboard')
+  getUserDashboard(@Param('userId') userId: string) {
+    return this.orderService.getUserDashboard(userId);
+  }
+
+  // ✅ Dashboard for Provider
+  @Get('provider/:providerId/dashboard')
+  getProviderDashboard(@Param('providerId') providerId: string) {
+    return this.orderService.getProviderDashboard(providerId);
   }
 }

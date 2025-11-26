@@ -37,7 +37,6 @@ export class CreateServiceDto {
   @IsMongoId()
   readonly categoryId: string;
 
-
   @IsOptional() @IsNumber() readonly GeneralRate?: number;
   @IsOptional() @IsNumber() readonly rate?: number;
   @IsOptional() @IsNumber() readonly countRate?: number;
@@ -64,9 +63,13 @@ export class CreateServiceDto {
   @IsNumber()
   readonly MaxCompletionDays: Number;
 
-    @IsNotEmpty()
+  @IsNotEmpty()
   @IsString()
   readonly time: String;
+
+  @IsNotEmpty()
+  @IsString()
+  readonly workingTime: String;
 
   @IsOptional()
   @IsString()
