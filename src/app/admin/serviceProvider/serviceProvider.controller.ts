@@ -108,7 +108,7 @@ export class ServiceProviderAdminController {
   // جلب كل Service Providers
   @Get()
   async getAllProviders() {
-    return this.serviceProviderService.getAllProviders();
+    return this.serviceProviderService.getAllProvidersWithStats();
   }
 
   // جلب كل Activity Logs الخاصة ب Provider

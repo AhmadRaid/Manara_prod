@@ -16,9 +16,51 @@ export class ServiceProviderAdminService {
   ) {}
 
   // 🟢 جلب كل Service Providers
-  async getAllProviders() {
-    return await this.providerModel.find({ isDeleted: false }).lean();
-  }
+ async getAllProvidersWithStats() {
+  const providers = await this.providerModel.aggregate([
+    { $match: { isDeleted: false } },
+
+    // ربط الخدمات
+    {
+      $lookup: {
+        from: 'services',
+        localField: '_id',
+        foreignField: 'provider',
+        as: 'services',
+      },
+    },
+
+    // ربط الطلبات حسب الخدمات
+    {
+      $lookup: {
+        from: 'orders',
+        localField: 'services._id',
+        foreignField: 'service',
+        as: 'orders',
+      },
+    },
+
+    // إضافة الحقول الإحصائية
+    {
+      $addFields: {
+        servicesCount: { $size: '$services' },
+        ordersCount: { $size: '$orders' },
+      },
+    },
+
+    // إزالة الحقول الكبيرة التي لا نحتاجها
+    {
+      $project: {
+        password: 0,
+        services: 0,
+        orders: 0,
+      },
+    },
+  ]).exec();
+
+  return providers;
+}
+
 
   // 🟢 جلب كل Activity Logs الخاصة ب Provider
   async getProviderActivityLogs(providerId: string) {

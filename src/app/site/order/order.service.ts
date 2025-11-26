@@ -13,6 +13,7 @@ import { UpdateOrderPaymentDto } from './dto/update-order-payment.dto';
 import { ActivityLogUserService } from '../../userDashboard/activity-log/activity-log.service';
 import { PointsHistory } from 'src/schemas/pointsHistory.schema';
 import { User } from 'src/schemas/user.schema';
+import { Provider } from 'src/schemas/serviceProvider.schema';
 
 interface Counter {
   _id: string;
@@ -34,8 +35,8 @@ export class OrderSiteService {
   constructor(
     @InjectModel(Order.name) private orderModel: Model<Order>,
     @InjectModel(Service.name) private serviceModel: Model<Service>,
+    @InjectModel(Provider.name) private providerModel: Model<Provider>,
     private readonly activityLogService: ActivityLogUserService,
-    @InjectConnection() private readonly connection: Connection, // 👈 لإدارة الترانزاكشن
     @InjectModel('PointsHistory')
     private readonly pointsHistoryModel: Model<PointsHistory>,
     @InjectModel(User.name) private readonly userModel: Model<User>, // ✅ أضف @InjectModel
@@ -134,6 +135,12 @@ export class OrderSiteService {
       await this.userModel.findByIdAndUpdate(
         userId,
         { $push: { order: createdOrder._id } },
+        { new: true }, // لإرجاع المستخدم بعد التحديث إذا احتجت
+      );
+
+      await this.providerModel.findByIdAndUpdate(
+        service.provider,
+        { $push: { orders: createdOrder._id } },
         { new: true }, // لإرجاع المستخدم بعد التحديث إذا احتجت
       );
 

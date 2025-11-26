@@ -20,6 +20,9 @@ export class Provider {
   @Prop({ type: [Types.ObjectId], ref: 'Service', default: [] })
   services: Types.ObjectId[];
 
+    @Prop({ type: [Types.ObjectId], ref: 'Order', default: [] })
+  orders: Types.ObjectId[];
+
   @Prop({
     type: String,
     enum: ['pending', 'approved', 'rejected', 'suspended'],

@@ -5,39 +5,51 @@ import { CreateServiceDto } from './dto/create-service.dto';
 import { FindAllQuery } from 'src/interfaces/FindAllQuery';
 import { Service } from 'src/schemas/service.schema';
 import { ActivityLogUserService } from 'src/app/userDashboard/activity-log/activity-log.service';
+import { Provider } from 'src/schemas/serviceProvider.schema';
 
 @Injectable()
 export class ServiceAdminService {
   constructor(
     @InjectModel(Service.name) private serviceModel: Model<Service>,
+    @InjectModel(Provider.name) private providerModel: Model<Provider>,
         private readonly activityLogService: ActivityLogUserService, // ✅ إضافة هذا
 
   ) {}
 
-  async create(createServiceDto: CreateServiceDto) {
-    const serviceData = {
-      ...createServiceDto,
-      categoryId: new Types.ObjectId(createServiceDto.categoryId as any),
-      provider: new Types.ObjectId(createServiceDto.providerId as any),
-    };
+async create(createServiceDto: CreateServiceDto) {
+  const serviceData = {
+    ...createServiceDto,
+    categoryId: new Types.ObjectId(createServiceDto.categoryId as any),
+    provider: new Types.ObjectId(createServiceDto.providerId as any),
+  };
 
-    const createdService = new this.serviceModel(serviceData);
-    const savedService = await createdService.save();
+  const createdService = new this.serviceModel(serviceData);
+  const savedService = await createdService.save();
 
-    await this.activityLogService.logActivityProvider(
-      savedService.provider, // مزود الخدمة
-      { ar: 'إنشاء خدمة جديدة', en: 'New Service Created' },
-      {
-        ar: `تم إنشاء خدمة جديدة بعنوان "${savedService.title.ar}" بسعر ${savedService.price} ر.س.`,
-        en: `A new service "${savedService.title.en}" has been created with price ${savedService.price} SAR.`,
-      },
-      {
-        serviceId: savedService._id,
-        categoryId: savedService.categoryId,
-        price: savedService.price,
-      },
-    );
-  }
+  // ✅ إضافة الـ service إلى الـ provider
+  await this.providerModel.findByIdAndUpdate(
+    savedService.provider,
+    { $push: { services: new Types.ObjectId(savedService._id) } },
+    { new: true },
+  );
+
+  await this.activityLogService.logActivityProvider(
+    savedService.provider, // مزود الخدمة
+    { ar: 'إنشاء خدمة جديدة', en: 'New Service Created' },
+    {
+      ar: `تم إنشاء خدمة جديدة بعنوان "${savedService.title.ar}" بسعر ${savedService.price} ر.س.`,
+      en: `A new service "${savedService.title.en}" has been created with price ${savedService.price} SAR.`,
+    },
+    {
+      serviceId: savedService._id,
+      categoryId: savedService.categoryId,
+      price: savedService.price,
+    },
+  );
+
+  return savedService;
+}
+
 
   async findAll({ limit, offset }: FindAllQuery, lang = 'ar', search?: string) {
     const fallbackLang = 'en';
