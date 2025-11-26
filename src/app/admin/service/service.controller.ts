@@ -159,6 +159,15 @@ export class ServiceAdminController {
     return this.serviceService.findById(id, lang); // ✅ تمرير الـ id و الـ lang
   }
 
+   @Get('edit/:serviceId')
+  findByIdForEditPage(
+    @Param('serviceId') id: string, // ✅ تصحيح اسم المعامل إلى id
+    @Query('lang') lang: 'ar' | 'en' = 'ar', // ✅ إضافة متغير اللغة
+  ) {
+    return this.serviceService.findByIdForEditPage(id, lang); // ✅ تمرير الـ id و الـ lang
+  }
+
+
   @Patch(':serviceId')
   @UseInterceptors(FileInterceptor('image'))
   async update(

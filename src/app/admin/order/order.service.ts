@@ -204,7 +204,7 @@ export class OrderAdminService {
 
     const result = await this.orderModel.aggregate(pipeline).exec();
     return {
-      data: result[0]?.data || [],
+      orders: result[0]?.data || [],
       total: result[0]?.totalCount?.[0]?.count || 0,
     };
   }

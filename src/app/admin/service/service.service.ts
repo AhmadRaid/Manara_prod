@@ -339,6 +339,93 @@ export class ServiceAdminService {
     return result[0];
   }
 
+   async findByIdForEditPage(id: string, lang = 'ar'): Promise<any> {
+    if (!Types.ObjectId.isValid(id)) {
+      throw new BadRequestException('Invalid service ID');
+    }
+
+    const langKey = lang === 'en' ? 'en' : 'ar';
+
+    const aggregationPipeline: any[] = [
+      // 1️⃣ مطابقة الخدمة المطلوبة
+      { $match: { _id: new Types.ObjectId(id), isDeleted: false } },
+
+      // 2️⃣ الربط مع الطلبات لحساب عدد المستخدمين الفريدين
+      {
+        $lookup: {
+          from: 'orders',
+          localField: '_id',
+          foreignField: 'service',
+          as: 'serviceOrders',
+        },
+      },
+      {
+        $addFields: {
+          usersCount: { $size: { $setUnion: '$serviceOrders.user' } },
+        },
+      },
+      { $project: { serviceOrders: 0 } },
+
+      // 3️⃣ الربط مع الفئة (category)
+      {
+        $lookup: {
+          from: 'categories',
+          localField: 'categoryId',
+          foreignField: '_id',
+          as: 'category',
+        },
+      },
+      { $unwind: { path: '$category', preserveNullAndEmptyArrays: true } },
+      {
+        $addFields: {
+          'category.name': {
+            $ifNull: [`$category.name.${langKey}`, `$category.name.ar`],
+          },
+        },
+      },
+
+      // 4️⃣ الربط مع المزود (provider)
+      {
+        $lookup: {
+          from: 'providers',
+          localField: 'provider',
+          foreignField: '_id',
+          as: 'provider',
+          pipeline: [
+            {
+              $project: {
+                _id: 1, // فقط الـ _id بدون أي تفاصيل إضافية
+              },
+            },
+          ],
+        },
+      },
+      { $unwind: { path: '$provider', preserveNullAndEmptyArrays: true } },
+
+      // 5️⃣ إعادة تسمية provider._id إلى providerId
+      {
+        $addFields: {
+          providerId: '$provider._id',
+        },
+      },
+
+      // 6️⃣ حذف كائن provider نفسه (نبقي فقط providerId)
+      {
+        $project: {
+          provider: 0,
+        },
+      }, 
+    ];
+
+    const result = await this.serviceModel.aggregate(aggregationPipeline).exec();
+
+    if (!result || result.length === 0) {
+      throw new NotFoundException('Service not found');
+    }
+
+    return result[0];
+  }
+
   async update(id: string, data: any): Promise<Service> {
     const service = await this.serviceModel.findByIdAndUpdate(id, data, {
       new: true,
