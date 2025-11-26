@@ -1,7 +1,4 @@
-import {
-  BadRequestException,
-  Injectable,
-} from '@nestjs/common';
+import { BadRequestException, Injectable } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model, Types } from 'mongoose';
 import { ActivityLogUserService } from 'src/app/userDashboard/activity-log/activity-log.service';
@@ -34,9 +31,7 @@ export class OrderAdminService {
     const safeLimit = isNaN(Number(limit)) ? 10 : Number(limit);
     const safeOffset = isNaN(Number(offset)) ? 0 : Number(offset);
 
-    const pipeline: any[] = [
-      { $match: { isDeleted: false } },
-    ];
+    const pipeline: any[] = [{ $match: { isDeleted: false } }];
 
     if (search && search.trim() !== '') {
       pipeline.push({
@@ -132,65 +127,97 @@ export class OrderAdminService {
     return updatedOrder;
   }
 
-  // ✅ جلب الطلبات حسب المستخدم أو المزود
-  async findByUserOrProvider(
+  async findOrdersByUserOrProvider(
     { userId, providerId, limit = 10, offset = 0 }: any,
     lang: string = 'ar',
   ) {
     const safeLimit = isNaN(Number(limit)) ? 10 : Number(limit);
     const safeOffset = isNaN(Number(offset)) ? 0 : Number(offset);
 
-    const pipeline: any[] = [];
     const match: any = { isDeleted: false };
-
     if (userId) match.user = new Types.ObjectId(userId);
 
+    const pipeline: any[] = [{ $match: match }];
+
+    // Lookup + filter by provider
     if (providerId) {
       const providerObjectId = new Types.ObjectId(providerId);
-      pipeline.push(
-        {
-          $lookup: {
-            from: 'services',
-            localField: 'service',
-            foreignField: '_id',
-            as: 'service',
-          },
-        },
-        { $match: { 'service.provider': providerObjectId } },
-      );
-    } else {
-      pipeline.push({ $match: match });
-    }
-
-    pipeline.push(
-      {
-        $lookup: {
-          from: 'users',
-          localField: 'user',
-          foreignField: '_id',
-          as: 'user',
-        },
-      },
-      { $unwind: { path: '$user', preserveNullAndEmptyArrays: true } },
-      {
+      pipeline.push({
         $lookup: {
           from: 'services',
           localField: 'service',
           foreignField: '_id',
           as: 'service',
         },
-      },
-      { $unwind: { path: '$service', preserveNullAndEmptyArrays: true } },
-    );
+      });
+      pipeline.push({
+        $unwind: { path: '$service', preserveNullAndEmptyArrays: true },
+      });
+      pipeline.push({ $match: { 'service.provider': providerObjectId } });
+    } else {
+      pipeline.push({
+        $lookup: {
+          from: 'services',
+          localField: 'service',
+          foreignField: '_id',
+          as: 'service',
+        },
+      });
+      pipeline.push({
+        $unwind: { path: '$service', preserveNullAndEmptyArrays: true },
+      });
+    }
 
+    // Lookup user
+    pipeline.push({
+      $lookup: {
+        from: 'users',
+        localField: 'user',
+        foreignField: '_id',
+        as: 'user',
+      },
+    });
+    pipeline.push({
+      $unwind: { path: '$user', preserveNullAndEmptyArrays: true },
+    });
+
+    // Translate multilingual fields
     const langKey = lang === 'en' ? 'en' : 'ar';
     pipeline.push({
       $addFields: {
         'service.title': `$service.title.${langKey}`,
         'service.description': `$service.description.${langKey}`,
+        'service.featureServices': {
+          $map: {
+            input: '$service.featureServices',
+            as: 'f',
+            in: {
+              title: { $ifNull: [`$$f.title.${langKey}`, `$$f.title.ar`] },
+              subtitle: {
+                $ifNull: [`$$f.subtitle.${langKey}`, `$$f.subtitle.ar`],
+              },
+              icon: '$$f.icon',
+            },
+          },
+        },
+        'service.filesNeeded': {
+          $map: {
+            input: '$service.filesNeeded',
+            as: 'f',
+            in: { $ifNull: [`$$f.${langKey}`, `$$f.ar`] },
+          },
+        },
+        'service.stepGetService': {
+          $map: {
+            input: '$service.stepGetService',
+            as: 'f',
+            in: { $ifNull: [`$$f.${langKey}`, `$$f.ar`] },
+          },
+        },
       },
     });
 
+    // Pagination
     pipeline.push({
       $facet: {
         data: [
@@ -333,7 +360,12 @@ export class OrderAdminService {
                       as: 'user',
                     },
                   },
-                  { $unwind: { path: '$user', preserveNullAndEmptyArrays: true } },
+                  {
+                    $unwind: {
+                      path: '$user',
+                      preserveNullAndEmptyArrays: true,
+                    },
+                  },
                   {
                     $project: {
                       _id: 1,

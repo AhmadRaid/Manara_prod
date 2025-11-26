@@ -56,7 +56,7 @@ export class OrderAdminController {
     @Query('offset') offset?: number,
     @Query('lang') lang?: string,
   ) {
-    return this.orderService.findByUserOrProvider({ userId, limit, offset }, lang);
+    return this.orderService.findOrdersByUserOrProvider({ userId, limit, offset }, lang);
   }
 
   @Get('provider/:providerId')
@@ -66,7 +66,7 @@ export class OrderAdminController {
     @Query('offset') offset?: number,
     @Query('lang') lang?: string,
   ) {
-    return this.orderService.findByUserOrProvider({ providerId, limit, offset }, lang);
+    return this.orderService.findOrdersByUserOrProvider({ providerId, limit, offset }, lang);
   }
 
   // ✅ Dashboard for User
