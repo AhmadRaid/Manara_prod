@@ -17,13 +17,7 @@ export class ServiceProviderAdminService {
 
   // 🟢 جلب كل Service Providers
   async getAllProviders() {
-    const providers = await this.providerModel
-      .find({ isDeleted: false })
-      .lean();
-    return providers.map((p) => ({
-      _id: p._id,
-      fullName: p.fullName,
-    }));
+    return await this.providerModel.find({ isDeleted: false }).lean();
   }
 
   // 🟢 جلب كل Activity Logs الخاصة ب Provider
@@ -61,7 +55,7 @@ export class ServiceProviderAdminService {
     return { modifiedCount: result.modifiedCount || 0 };
   }
 
-   async create(
+  async create(
     createServiceDto: CreateServiceDto,
     image: Express.Multer.File,
   ): Promise<Service> {

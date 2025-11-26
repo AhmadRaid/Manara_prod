@@ -73,11 +73,6 @@ export class UserService {
           status: 1,
           createdAt: 1,
         },
-        reservations: {
-          _id: 1,
-          date_selected: 1,
-          status: 1,
-        },
       },
     },
   ]);
