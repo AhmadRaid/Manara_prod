@@ -1,11 +1,12 @@
 import {
-    BadRequestException,
+  BadRequestException,
   Body,
   Controller,
   Get,
   Param,
   Patch,
   Post,
+  Query,
   UploadedFile,
   UseGuards,
   UseInterceptors,
@@ -113,8 +114,18 @@ export class ServiceProviderAdminController {
 
   // جلب كل Activity Logs الخاصة ب Provider
   @Get(':providerId/activity-logs')
-  async getProviderActivityLogs(@Param('providerId') providerId: string) {
-    return this.serviceProviderService.getProviderActivityLogs(providerId);
+  async getProviderActivityLogs(
+    @Param('providerId') providerId: string,
+    @Query('limit') limit?: number,
+    @Query('offset') offset?: number,
+    @Query('lang') lang?: 'ar' | 'en',
+  ) {
+    return this.serviceProviderService.getProviderActivityLogs(
+      providerId,
+      lang,
+      limit,
+      offset,
+    );
   }
 
   // الموافقة على كل Services الخاصة بال Provider

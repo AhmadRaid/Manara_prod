@@ -10,47 +10,35 @@ import { TokenModule } from 'src/common/token/token.module';
 
 // ✅ استيراد ملفات الإدمن الجديدة
 import { Admin, AdminSchema } from 'src/schemas/admin.schema';
-import { AdminAuthController } from './auth.controller';
 import { AuthService } from 'src/app/userDashboard/auth/auth.service';
-import { AuthController } from 'src/app/userDashboard/auth/auth.controller';
-import { AdminAuthService } from './auth.service';
 import { AuthProviderService } from 'src/app/serviceProvider/auth/auth.service';
-import { AuthProviderController } from 'src/app/serviceProvider/auth/auth.controller';
 import { Provider, ProviderSchema } from 'src/schemas/serviceProvider.schema';
-import { HomeAdminController } from '../home/home.controller';
-import { HomeAdminService } from '../home/home.service';
+import { Blog, BlogSchema } from 'src/schemas/blog.schema';
+import { Service, ServiceSchema } from 'src/schemas/service.schema';
+import { Order, OrderSchema } from 'src/schemas/order.schema';
+import { HomeAdminController } from './home.controller';
+import { HomeAdminService } from './home.service';
 
 @Global()
 @Module({
   imports: [
     MongooseModule.forFeature([
       { name: User.name, schema: UserSchema },
-      { name: Verification.name, schema: VerificationSchema },
       { name: Admin.name, schema: AdminSchema }, // ✅ إضافة جدول الإدمن
       { name: Provider.name, schema: ProviderSchema }, // ✅ إضافة جدول الإدمن
+      { name: Blog.name, schema: BlogSchema },
+      { name: Service.name, schema: ServiceSchema },
+      { name: Order.name, schema: OrderSchema },
     ]),
-    JwtModule.register({
-      secret: 'TRUST4d2f8b56932d',
-      signOptions: { expiresIn: '90d' },
-    }),
-    TokenModule,
   ],
   controllers: [
-    AuthController, // المستخدمين
-    AdminAuthController, // ✅ الإدمن
-    AuthProviderController,
+    HomeAdminController
   ],
   providers: [
-    AuthService, // المستخدمين
-    AdminAuthService, // ✅ الإدمن
-    AuthProviderService,
+    HomeAdminService
   ],
   exports: [
-    AuthService,
-    AdminAuthService, // ✅ تصدير خدمة الإدمن
-    AuthProviderService,
-    JwtModule,
-    MongooseModule,
+    HomeAdminService
   ],
 })
-export class AuthModule {}
+export class HomeAdminModule {}

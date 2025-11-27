@@ -30,14 +30,16 @@ export class Provider {
   })
   status: string;
 
+  @Prop({ type: Number, default: 0 })
+  balance: number;
+
   @Prop({ type: Boolean, default: false })
   isVerified: boolean;
 
   @Prop({ type: Boolean, default: false })
   isDeleted: boolean;
   
-  @Prop({ type: Number, default: 0 })
-  balance: number;
+
 }
 
 export const ProviderSchema = SchemaFactory.createForClass(Provider);

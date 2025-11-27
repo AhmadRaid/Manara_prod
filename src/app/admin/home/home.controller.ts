@@ -1,12 +1,12 @@
-import { Controller, Get } from '@nestjs/common';
-import { HomeService } from './home.service';
+import { Controller, Get, Query } from '@nestjs/common';
+import { HomeAdminService } from './home.service';
 
 @Controller('admin/home')
-export class HomeController {
-	constructor(private readonly homeService: HomeService) {}
+export class HomeAdminController {
+	constructor(private readonly homeService: HomeAdminService) {}
 
-	@Get('dashboard-stats')
-	async getDashboardStats() {
-		return this.homeService.getDashboardStats();
+	@Get()
+	async getDashboardStats(@Query('lang') lang: 'ar' | 'en' = 'ar') {
+		return this.homeService.getDashboardStats(lang);
 	}
 }

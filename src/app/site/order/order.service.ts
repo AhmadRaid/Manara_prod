@@ -24,7 +24,6 @@ type DualLang = { ar: string; en: string };
 
 @Injectable()
 export class OrderSiteService {
-
   constructor(
     @InjectModel(Order.name) private orderModel: Model<Order>,
     @InjectModel(Service.name) private serviceModel: Model<Service>,
@@ -121,6 +120,8 @@ export class OrderSiteService {
           orderId: createdOrder._id,
           orderNumber: createdOrder.orderNumber,
           status: createdOrder.status,
+          serviceId: new Types.ObjectId(dto.serviceId),
+          categoryId: new Types.ObjectId(service.categoryId),
         },
       );
 
@@ -364,6 +365,4 @@ export class OrderSiteService {
 
     return order.documentsUrl || [];
   }
-
- 
 }
