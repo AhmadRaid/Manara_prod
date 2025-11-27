@@ -1,4 +1,12 @@
-import { Controller, Get, Query, Req, UseGuards } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  Get,
+  Post,
+  Query,
+  Req,
+  UseGuards,
+} from '@nestjs/common';
 import { LoyaltyPointUserService } from './loyaltyService.service';
 import { AuthRequest } from 'src/interfaces/AuthRequest';
 import { JwtAuthGuard } from 'src/common/guards/jwtAuthGuard';

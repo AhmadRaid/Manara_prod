@@ -6,7 +6,7 @@ import {
 import { InjectModel } from '@nestjs/mongoose';
 import { Model, Connection, Types } from 'mongoose';
 import { InjectConnection } from '@nestjs/mongoose';
-import { Order } from 'src/schemas/order.schema';
+import { Order, TIMELINE_STEPS } from 'src/schemas/order.schema';
 import { Service } from 'src/schemas/service.schema';
 import { CreateOrderStep1Dto } from './dto/create-order-step1.dto';
 import { UpdateOrderPaymentDto } from './dto/update-order-payment.dto';
@@ -24,13 +24,6 @@ type DualLang = { ar: string; en: string };
 
 @Injectable()
 export class OrderSiteService {
-  private readonly TIMELINE_STEPS = {
-    STEP_CREATED: 'تم انشاء الطلب',
-    STEP_PAYMENT: 'تم الدفع بنجاح',
-    STEP_DOCUMENTS: 'رفع المستندات',
-    STEP_PROCESSING: 'قيد المعالجة',
-    STEP_FINAL_PROCESS: 'المعالجة النهائية',
-  };
 
   constructor(
     @InjectModel(Order.name) private orderModel: Model<Order>,
@@ -80,28 +73,28 @@ export class OrderSiteService {
             orderNumber: `ORD-${nextOrderNumber}`,
             timeline: [
               {
-                step: this.TIMELINE_STEPS.STEP_CREATED,
+                step: TIMELINE_STEPS.STEP_CREATED,
                 done: true,
                 date: new Date(),
                 notes: 'تم إستلام طلبك و إنشاء رقم التتبع',
               },
               {
-                step: this.TIMELINE_STEPS.STEP_PAYMENT,
+                step: TIMELINE_STEPS.STEP_PAYMENT,
                 done: false,
                 notes: ` ${service.price}تم إستلام مبلغ بقيمة`,
               },
               {
-                step: this.TIMELINE_STEPS.STEP_DOCUMENTS,
+                step: TIMELINE_STEPS.STEP_DOCUMENTS,
                 done: false,
                 notes: 'تم رفع جميع المستندات المطلوبة',
               },
               {
-                step: this.TIMELINE_STEPS.STEP_PROCESSING,
+                step: TIMELINE_STEPS.STEP_PROCESSING,
                 done: false,
                 notes: 'جار معالجة المستندات والتحقق منها',
               },
               {
-                step: this.TIMELINE_STEPS.STEP_FINAL_PROCESS,
+                step: TIMELINE_STEPS.STEP_FINAL_PROCESS,
                 done: false,
                 notes: 'سيتم معالجة الطلب وإرسال النتائج',
               },
@@ -165,7 +158,7 @@ export class OrderSiteService {
     }
 
     const updatedTimeline = (order.timeline || []).map((item) =>
-      item.step === this.TIMELINE_STEPS.STEP_PAYMENT
+      item.step === TIMELINE_STEPS.STEP_PAYMENT
         ? {
             ...item,
             done: true,
@@ -371,4 +364,6 @@ export class OrderSiteService {
 
     return order.documentsUrl || [];
   }
+
+ 
 }

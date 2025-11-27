@@ -21,6 +21,14 @@ export interface OrderDocument {
   notes?: string;
 }
 
+  export const TIMELINE_STEPS = {
+    STEP_CREATED: 'تم انشاء الطلب',
+    STEP_PAYMENT: 'تم الدفع بنجاح',
+    STEP_DOCUMENTS: 'رفع المستندات',
+    STEP_PROCESSING: 'قيد المعالجة',
+    STEP_FINAL_PROCESS: 'المعالجة النهائية',
+  };
+
 // ---------------------------------------------------------
 // القالب الافتراضي للحالات الخمس
 // ---------------------------------------------------------
@@ -52,6 +60,8 @@ const createDefaultTimeline = (): OrderTimeline[] => [
     notes: 'سيتم معالجة الطلب والتحقق من النتائج.',
   },
 ];
+
+
 
 @Schema({ timestamps: true })
 export class Order extends Document {

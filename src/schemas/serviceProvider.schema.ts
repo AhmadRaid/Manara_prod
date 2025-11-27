@@ -20,7 +20,7 @@ export class Provider {
   @Prop({ type: [Types.ObjectId], ref: 'Service', default: [] })
   services: Types.ObjectId[];
 
-    @Prop({ type: [Types.ObjectId], ref: 'Order', default: [] })
+  @Prop({ type: [Types.ObjectId], ref: 'Order', default: [] })
   orders: Types.ObjectId[];
 
   @Prop({
@@ -35,6 +35,9 @@ export class Provider {
 
   @Prop({ type: Boolean, default: false })
   isDeleted: boolean;
+  
+  @Prop({ type: Number, default: 0 })
+  balance: number;
 }
 
 export const ProviderSchema = SchemaFactory.createForClass(Provider);

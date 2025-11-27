@@ -1,13 +1,31 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import {
+  BadRequestException,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model, Types } from 'mongoose';
-import { Order, OrderTimeline } from 'src/schemas/order.schema';
+import { Order, OrderTimeline, TIMELINE_STEPS } from 'src/schemas/order.schema';
 import { CreateOrderDto } from './dto/create-order.dto';
 import { UpdateOrderDto } from './dto/update-order.dto';
+import { Service } from 'src/schemas/service.schema';
+import { ActivityLogUserService } from '../activity-log/activity-log.service';
+import { Provider } from 'src/schemas/serviceProvider.schema';
+import { User } from 'src/schemas/user.schema';
+import { PointsHistory } from 'src/schemas/pointsHistory.schema';
+import { CreateOrderStep1Dto } from 'src/app/site/order/dto/create-order-step1.dto';
 
 @Injectable()
 export class OrderUserDashboardService {
-  constructor(@InjectModel(Order.name) private orderModel: Model<Order>) {}
+  constructor(
+    @InjectModel(Order.name) private orderModel: Model<Order>,
+    @InjectModel(Service.name) private serviceModel: Model<Service>,
+    @InjectModel(Provider.name) private providerModel: Model<Provider>,
+    private readonly activityLogService: ActivityLogUserService,
+    @InjectModel('PointsHistory')
+    private readonly pointsHistoryModel: Model<PointsHistory>,
+    @InjectModel(User.name) private readonly userModel: Model<User>,
+  ) {}
 
   async getTimelineByOrderId(id: string): Promise<OrderTimeline[]> {
     const order = await this.orderModel.findById(id).select('timeline').exec();
@@ -190,5 +208,144 @@ export class OrderUserDashboardService {
     }
 
     return result[0];
+  }
+
+  async redeemPointsForOrder(
+    dto: CreateOrderStep1Dto,
+    userId: string,
+  ): Promise<Order> {
+    const session = await this.orderModel.db.startSession();
+
+    try {
+      let newOrderResult;
+
+      await session.withTransaction(async () => {
+        const [user, service] = await Promise.all([
+          this.userModel.findById(userId).session(session),
+          this.serviceModel.findById(dto.serviceId).session(session),
+        ]);
+
+        if (!user) throw new NotFoundException('المستخدم غير موجود.');
+        if (!service) throw new NotFoundException('الخدمة غير متوفرة.');
+
+        const requiredPoints =
+          service.loyaltyPoints || Math.floor(service.price);
+
+          console.log('11111111111',requiredPoints,user.loyaltyPoints);
+          
+        if (user.loyaltyPoints < requiredPoints) {
+          throw new BadRequestException('النقاط غير كافية.');
+        }
+
+        // خصم النقاط
+        user.loyaltyPoints -= requiredPoints;
+        user.loyaltyPointsUsed += requiredPoints;
+        await user.save({ session });
+
+        // سجل النقاط
+        await this.pointsHistoryModel.create(
+          [
+            {
+              user: new Types.ObjectId(userId),
+              type: 'redeem',
+              points: requiredPoints,
+              source: 'استبدال نقاط لخدمة',
+              serviceId: service._id,
+            },
+          ],
+          { session },
+        );
+
+        // رقم الطلب
+        const counterResult = await this.orderModel.db
+          .collection('counters')
+          .findOneAndUpdate(
+            { name: 'orderNumber' },
+            { $inc: { value: 1 } },
+            { upsert: true, returnDocument: 'after', session },
+          );
+
+        const nextOrderNumber = counterResult.value ?? 1;
+
+        // إنشاء timeline مخصص للدفع بالنقاط
+        const customTimeline = [
+          {
+            step: 'تم انشاء الطلب',
+            done: true,
+            date: new Date(),
+            notes: 'تم استلام طلبك وانشاء رقم التتبع',
+          },
+          {
+            step: 'تم الدفع بنجاح',
+            done: true,
+            notes: 'تم الدفع عن طريق اسبتدال النقاط بنجاح',
+          },
+          {
+            step: 'رفع المستندات',
+            done: false,
+            notes: 'تم رفع جميع المستندات المطلوبة',
+          },
+          {
+            step: 'قيد المعالجة',
+            done: false,
+            notes: 'جار معالجة المستندات والتحقق منها',
+          },
+          {
+            step: 'المعالجة النهائية',
+            done: false,
+            notes: 'سيتم معالجة الطلب والتحقق من النتائج.',
+          },
+        ];
+
+        // إنشاء الطلب مع timeline مخصص
+        const newOrder = await this.orderModel.create(
+          [
+            {
+              user: new Types.ObjectId(userId),
+              service: service._id,
+              price: service.price,
+              paymentMethod: 'points',
+              status: 'in-progress',
+              clientStage: 'step2_payment',
+              orderNumber: `ORD-${nextOrderNumber}`,
+              timeline: customTimeline,
+            },
+          ],
+          { session },
+        );
+
+        // تحديث المستخدم ومزود الخدمة
+        await this.userModel.updateOne(
+          { _id: user._id },
+          { $push: { order: newOrder[0]._id } },
+          { session },
+        );
+
+        await this.providerModel.updateOne(
+          { _id: service.provider },
+          { $push: { orders: newOrder[0]._id } },
+          { session },
+        );
+
+        newOrderResult = newOrder[0];
+      });
+
+      await session.endSession();
+
+      // 🔹 سجل النشاط بعد نجاح الـ transaction
+      await this.activityLogService.logActivity(
+        new Types.ObjectId(userId),
+        { ar: 'استبدال نقاط', en: 'Points Redeemed' },
+        {
+          ar: 'تم استبدال النقاط مقابل خدمة.',
+          en: 'Points redeemed for a service.',
+        },
+      );
+
+      return newOrderResult;
+    } catch (err) {
+      await session.endSession();
+      throw err;
+    }
   }
 }

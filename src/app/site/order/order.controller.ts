@@ -43,10 +43,13 @@ export class OrderSiteController {
   async updateOrderStep2Payment(
     @Param('orderId') orderId: string,
     @Body() dto: UpdateOrderPaymentDto,
-        @Req() req: AuthRequest,
-
+    @Req() req: AuthRequest,
   ) {
-    return this.orderService.updateOrderStep2Payment(orderId, dto,req.user._id);
+    return this.orderService.updateOrderStep2Payment(
+      orderId,
+      dto,
+      req.user._id,
+    );
   }
 
   // 📄 رفع المستندات
@@ -117,4 +120,5 @@ export class OrderSiteController {
       documents,
     };
   }
+
 }

@@ -20,15 +20,15 @@ export class ChatService {
   ) {}
 
   // ✅ إنشاء أو استرجاع المحادثة بناء على orderId
- async createOrGetChat(orderId: string): Promise<Chat> {
+  async createOrGetChat(orderId: string): Promise<Chat> {
     // 1️⃣ جلب الطلب مع مزود الخدمة باستخدام aggregation
     const orders = await this.orderModel.aggregate([
       { $match: { _id: new Types.ObjectId(orderId) } },
       {
         $lookup: {
-          from: 'services',          // اسم collection الخدمات
-          localField: 'service',     // الحقل في الطلب
-          foreignField: '_id',       // الحقل المقابل في service
+          from: 'services', // اسم collection الخدمات
+          localField: 'service', // الحقل في الطلب
+          foreignField: '_id', // الحقل المقابل في service
           as: 'service',
         },
       },
@@ -41,8 +41,8 @@ export class ChatService {
       },
     ]);
 
-    console.log('111111111111',orders);
-    
+    console.log('111111111111', orders);
+
     const order = orders[0];
 
     if (!order) throw new NotFoundException('الطلب غير موجود.');
@@ -124,7 +124,7 @@ export class ChatService {
     const chat = await this.chatModel.findOne({
       order: new Types.ObjectId(orderId),
     });
-    if (!chat) throw new NotFoundException('لا توجد محادثة لهذا الطلب.');
+    if (!chat) return 'لا توجد محادثة لهذا الطلب.';
 
     const chatId = chat._id as Types.ObjectId;
 
@@ -179,7 +179,9 @@ export class ChatService {
 
   // ✅ تحديد جميع الرسائل كمقروءة
   async markMessagesAsRead(orderId: string, readerType: 'User' | 'Provider') {
-    const chat = await this.chatModel.findOne({ order: new Types.ObjectId(orderId) });
+    const chat = await this.chatModel.findOne({
+      order: new Types.ObjectId(orderId),
+    });
     if (!chat) throw new NotFoundException('المحادثة غير موجودة.');
 
     await this.messageModel.updateMany(

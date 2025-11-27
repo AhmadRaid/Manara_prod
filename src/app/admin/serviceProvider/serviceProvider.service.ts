@@ -101,7 +101,6 @@ export class ServiceProviderAdminService {
     createServiceDto: CreateServiceDto,
     image: Express.Multer.File,
   ): Promise<Service> {
-    const baseUrl = process.env.BASE_URL;
     // تحويل categoryId إلى ObjectId وإضافة مسار الصورة
     const serviceData = {
       ...createServiceDto,
