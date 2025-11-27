@@ -111,7 +111,7 @@ export class OrderSiteController {
     const documents = await this.orderService.getOrderDocuments(orderId);
 
     if (!documents || documents.length === 0) {
-      throw new BadRequestException('لا توجد مستندات مرفوعة لهذا الطلب بعد.');
+      return 'لا توجد مستندات مرفوعة لهذا الطلب بعد.';
     }
 
     return {
