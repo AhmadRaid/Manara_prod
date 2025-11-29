@@ -14,6 +14,8 @@ import { Provider } from 'src/schemas/serviceProvider.schema';
 import { User } from 'src/schemas/user.schema';
 import { PointsHistory } from 'src/schemas/pointsHistory.schema';
 import { CreateOrderStep1Dto } from 'src/app/site/order/dto/create-order-step1.dto';
+import { ActivityLog } from 'src/schemas/activity-log.schema';
+import { changeNotifcationOrderDto } from './dto/change-notification-order.dto';
 
 @Injectable()
 export class OrderUserDashboardService {
@@ -231,8 +233,8 @@ export class OrderUserDashboardService {
         const requiredPoints =
           service.loyaltyPoints || Math.floor(service.price);
 
-          console.log('11111111111',requiredPoints,user.loyaltyPoints);
-          
+        console.log('11111111111', requiredPoints, user.loyaltyPoints);
+
         if (user.loyaltyPoints < requiredPoints) {
           throw new BadRequestException('النقاط غير كافية.');
         }
@@ -309,6 +311,7 @@ export class OrderUserDashboardService {
               clientStage: 'step2_payment',
               orderNumber: `ORD-${nextOrderNumber}`,
               timeline: customTimeline,
+              notificationsEnabled: true, // افتراضي مفعّل
             },
           ],
           { session },
@@ -347,5 +350,75 @@ export class OrderUserDashboardService {
       await session.endSession();
       throw err;
     }
+  }
+
+  // جلب إشعارات الطلب للعميل إذا كان التفعيل مفعّل
+  async getOrderNotificationsByUserId(
+    orderId: string,
+    userId: string,
+  ): Promise<any[]> {
+    // جلب الطلب والتأكد من تفعيل الإشعارات
+    const order = await this.orderModel
+      .findById(orderId)
+      .select('user notificationsEnabled')
+      .exec();
+    if (!order) throw new NotFoundException('الطلب غير موجود');
+    // إذا لم يكن المستخدم هو صاحب الطلب
+    if (order.user.toString() !== userId.toString())
+      throw new BadRequestException('لا يمكنك جلب إشعارات لطلب لا تملكه');
+    // إذا لم يكن التفعيل مفعّل
+    if (!order.notificationsEnabled) return [];
+    // جلب كل activity log المرتبطة بهذا الطلب والمستخدم عبر الخدمة
+    return await this.activityLogService.getLogsForOrderAndUser(
+      orderId,
+      userId,
+    );
+  }
+
+  async changeNotificationOrder(
+    orderId: string,
+    notificationsEnabled: boolean,
+    userId: string,
+  ): Promise<any> {
+    // جلب الطلب والتأكد من ملكية المستخدم
+    const order = await this.orderModel
+      .findById(orderId)
+      .select('user notificationsEnabled')
+      .exec();
+    if (!order) throw new NotFoundException('الطلب غير موجود');
+    if (order.user.toString() !== userId.toString())
+      throw new BadRequestException('لا يمكنك تعديل إشعارات لطلب لا تملكه');
+
+    // تحديث حالة الإشعارات
+    order.notificationsEnabled = notificationsEnabled == true ? true : false;
+    await order.save();
+
+    return { success: true, notificationsEnabled: order.notificationsEnabled };
+  }
+
+  // جلب كل إشعارات الطلبات للمستخدم والتي فيها notificationsEnabled = true
+  async getAllOrderNotificationsByUserId(
+    userId: string,
+    lang: 'ar' | 'en' ,
+  ): Promise<any[]> {
+    // جلب كل الطلبات المرتبطة بالمستخدم والتي فيها notificationsEnabled = true
+    const orders = await this.orderModel
+      .find({
+        user: new Types.ObjectId(userId),
+        notificationsEnabled: true,
+        isDeleted: { $ne: true },
+      })
+      .select('_id')
+      .exec();
+
+    const orderObjectIds = orders.map((order) => order._id as Types.ObjectId);
+    if (orderObjectIds.length === 0) return [];
+
+    // جلب كل activity logs المرتبطة بهذه الطلبات والمستخدم عبر الخدمة
+    return this.activityLogService.getLogsForOrdersAndUser(
+      orderObjectIds,
+      userId,
+      lang,
+    );
   }
 }

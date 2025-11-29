@@ -21,13 +21,13 @@ export interface OrderDocument {
   notes?: string;
 }
 
-  export const TIMELINE_STEPS = {
-    STEP_CREATED: 'تم انشاء الطلب',
-    STEP_PAYMENT: 'تم الدفع بنجاح',
-    STEP_DOCUMENTS: 'رفع المستندات',
-    STEP_PROCESSING: 'قيد المعالجة',
-    STEP_FINAL_PROCESS: 'المعالجة النهائية',
-  };
+export const TIMELINE_STEPS = {
+  STEP_CREATED: 'تم انشاء الطلب',
+  STEP_PAYMENT: 'تم الدفع بنجاح',
+  STEP_DOCUMENTS: 'رفع المستندات',
+  STEP_PROCESSING: 'قيد المعالجة',
+  STEP_FINAL_PROCESS: 'المعالجة النهائية',
+};
 
 // ---------------------------------------------------------
 // القالب الافتراضي للحالات الخمس
@@ -61,8 +61,6 @@ const createDefaultTimeline = (): OrderTimeline[] => [
   },
 ];
 
-
-
 @Schema({ timestamps: true })
 export class Order extends Document {
   @Prop({ type: Types.ObjectId, ref: 'User', required: true })
@@ -80,10 +78,14 @@ export class Order extends Document {
   @Prop({ type: String }) // رابط صورة الحوالة البنكية
   bankTransferReceipt: string;
 
-  @Prop({ type: String }) 
+  @Prop({ type: String })
   bankTransferRejectReason: string;
 
-  @Prop({ type: String, enum: ['pending', 'approved', 'rejected'], default: 'pending' })
+  @Prop({
+    type: String,
+    enum: ['pending', 'approved', 'rejected'],
+    default: 'pending',
+  })
   bankTransferStatus: string;
 
   @Prop({ required: true })
@@ -133,6 +135,9 @@ export class Order extends Document {
 
   @Prop()
   notes: string;
+
+  @Prop({ type: Boolean, default: false })
+  notificationsEnabled: boolean;
 
   @Prop({ type: Boolean, default: false })
   isDeleted: boolean;

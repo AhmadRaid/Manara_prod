@@ -1,3 +1,4 @@
+// جلب كل الإشعارات بناءً على قائمة الطلبات والمستخدم
 import { Injectable } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model, PipelineStage, Types } from 'mongoose';
@@ -15,13 +16,36 @@ export class ActivityLogUserService {
     @InjectModel(ActivityLog.name) private activityLogModel: Model<ActivityLog>,
   ) {}
 
-  /**
-   * يسجل نشاطاً جديداً، مع تخزين العنوان والوصف بشكل ثنائي اللغة (ككائنات مدمجة).
-   * @param user معرف المستخدم.
-   * @param title العنوان ثنائي اللغة.
-   * @param description الوصف ثنائي اللغة.
-   * @param metadata بيانات إضافية (مثل رقم الطلب، الحالة).
-   */
+  async getLogsForOrdersAndUser(
+    orderIds: Types.ObjectId[],
+    userId: string,
+    lang: 'ar' | 'en' = 'ar',
+  ): Promise<ActivityLog[]> {
+    return this.activityLogModel
+      .aggregate([
+        {
+          $match: {
+            user: new Types.ObjectId(userId),
+            'metadata.orderId': { $in: orderIds },
+          },
+        },
+        {
+          $project: {
+            _id: 1,
+            createdAt: 1,
+            updatedAt: 1,
+            // 👇 نعرض فقط النص الخاص باللغة المطلوبة
+            title: { $ifNull: [`$title.${lang}`, '$title.ar'] },
+            description: {
+              $ifNull: [`$description.${lang}`, '$description.ar'],
+            },
+          },
+        },
+        { $sort: { createdAt: -1 } },
+      ])
+      .exec();
+  }
+
   async logActivity(
     user: Types.ObjectId,
     title: DualLangContent,
@@ -38,7 +62,7 @@ export class ActivityLogUserService {
     return logEntry;
   }
 
-    async logActivityProvider(
+  async logActivityProvider(
     provider: Types.ObjectId,
     title: DualLangContent,
     description: DualLangContent,
@@ -100,7 +124,7 @@ export class ActivityLogUserService {
     return activities;
   }
 
- async findByOrderId(orderId: string, lang: 'ar' | 'en'): Promise<any[]> {
+  async findByOrderId(orderId: string, lang: 'ar' | 'en'): Promise<any[]> {
     const pipeline: PipelineStage[] = [
       {
         $match: {
@@ -121,5 +145,18 @@ export class ActivityLogUserService {
     ];
 
     return this.activityLogModel.aggregate(pipeline).exec();
+  }
+
+  async getLogsForOrderAndUser(
+    orderId: string,
+    userId: string,
+  ): Promise<ActivityLog[]> {
+    return this.activityLogModel
+      .find({
+        user: new Types.ObjectId(userId),
+        'metadata.orderId': new Types.ObjectId(orderId),
+      })
+      .sort({ createdAt: -1 })
+      .exec();
   }
 }

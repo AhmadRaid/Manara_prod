@@ -3,6 +3,7 @@ import {
   Controller,
   Get,
   Param,
+  Patch,
   Post,
   Query,
   Req,
@@ -37,5 +38,29 @@ export class OrderUserDashboardController {
     @Req() req: AuthRequest,
   ) {
     return this.orderService.redeemPointsForOrder(dto, req.user._id);
+  }
+
+  @Patch('status-notification-order/:statusNotification/:orderId')
+  async changeNotificationOrder(
+    @Param('orderId') orderId: string,
+    @Param('statusNotification') statusNotification: 'active' | 'inactive',
+    @Req() req: AuthRequest,
+  ) {
+    return this.orderService.changeNotificationOrder(
+      orderId,
+      statusNotification === 'active' ? true : false,
+      req.user._id,
+    );
+  }
+
+  @Get('notifications/all')
+  async getAllOrderNotifications(
+    @Req() req: AuthRequest,
+    @Query() lang: 'ar' | 'en' = 'ar',
+  ) {
+    return this.orderService.getAllOrderNotificationsByUserId(
+      req.user._id,
+      lang,
+    );
   }
 }
