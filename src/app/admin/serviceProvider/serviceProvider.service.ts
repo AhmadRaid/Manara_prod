@@ -15,6 +15,41 @@ export class ServiceProviderAdminService {
     private readonly activityLogModel: Model<ActivityLog>,
   ) {}
 
+  // جلب بيانات بروفايل مزود الخدمة
+  async profile(providerId: string): Promise<Provider> {
+    const provider = await this.providerModel.findById(providerId);
+    if (!provider || provider.isDeleted) {
+      throw new NotFoundException('Provider not found');
+    }
+    return provider;
+  }
+
+  // تحديث بيانات مزود الخدمة
+  async update(providerId: string, updateData: any): Promise<Provider> {
+    const provider = await this.providerModel.findByIdAndUpdate(
+      new Types.ObjectId(providerId),
+      updateData,
+      { new: true, runValidators: true }
+    );
+    console.log('111111111111111111111111');
+    
+    if (!provider || provider.isDeleted) {
+      throw new NotFoundException('Provider not found');
+    }
+    return provider;
+  }
+
+  // حذف مزود الخدمة (حذف منطقي)
+  async delete(providerId: string): Promise<Provider> {
+    const provider = await this.providerModel.findById(providerId);
+    if (!provider || provider.isDeleted) {
+      throw new NotFoundException('Provider not found');
+    }
+    provider.isDeleted = true;
+    await provider.save();
+    return provider;
+  }
+
   // 🟢 جلب كل Service Providers
   async getAllProvidersWithStats() {
     const providers = await this.providerModel
@@ -190,22 +225,8 @@ export class ServiceProviderAdminService {
     return { modifiedCount: result.modifiedCount || 0 };
   }
 
-  async create(
-    createServiceDto: CreateServiceDto,
-    image: Express.Multer.File,
-  ): Promise<Service> {
-    // تحويل categoryId إلى ObjectId وإضافة مسار الصورة
-    const serviceData = {
-      ...createServiceDto,
-      categoryId: new Types.ObjectId(createServiceDto.categoryId as any),
-      provider: new Types.ObjectId(createServiceDto.providerId as any),
-
-      image: image
-        ? `https://backend-uh6k.onrender.com/${image.path}`
-        : createServiceDto.image || null,
-    };
-
-    const createdService = new this.serviceModel(serviceData);
-    return createdService.save();
+  async create(finalProviderData: any): Promise<Provider> {
+    const createdServiceProvider = new this.providerModel(finalProviderData);
+    return createdServiceProvider.save();
   }
 }

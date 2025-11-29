@@ -378,4 +378,44 @@ export class OrderSiteService {
 
     return order.documentsUrl || [];
   }
+
+
+   async getBankInfoByServiceId(serviceId: string) {
+    const pipeline = [
+      { $match: { _id: new Types.ObjectId(serviceId) } },
+      {
+        $lookup: {
+          from: 'providers',
+          localField: 'provider',
+          foreignField: '_id',
+          as: 'provider',
+        },
+      },
+      { $unwind: { path: '$provider', preserveNullAndEmptyArrays: false } },
+      {
+        $project: {
+          _id: 0,
+          bankAccountNumber: '$provider.bankAccountNumber',
+          bankBarcode: '$provider.bankBarcode',
+          // provider: {
+          //   _id: '$provider._id',
+          //   fullName: '$provider.fullName',
+          //   email: '$provider.email',
+          //   phone: '$provider.phone',
+          //   status: '$provider.status',
+          //   isVerified: '$provider.isVerified',
+          // },
+        },
+      },
+    ];
+    const result = await this.serviceModel.aggregate(pipeline).exec();
+
+    console.log('11111111111111',result);
+    
+    if (!result || result.length === 0) {
+      throw new NotFoundException('Service or provider not found');
+    }
+    return result[0];
+      }
+      
 }

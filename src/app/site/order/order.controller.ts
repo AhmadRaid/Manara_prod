@@ -54,7 +54,6 @@ export class OrderSiteController {
     @Req() req: AuthRequest,
   ) {
     let receiptFinalUrl: string | undefined;
-    console.log('11111111111', bankTransferReceipt);
 
     if (bankTransferReceipt) {
       receiptFinalUrl = await this.azureStorageService.uploadFile(
@@ -143,5 +142,10 @@ export class OrderSiteController {
       count: documents.length,
       documents,
     };
+  }
+
+  @Get(':serviceId/bank-info')
+  async getBankInfoByServiceId(@Param('serviceId') serviceId: string) {
+    return await this.orderService.getBankInfoByServiceId(serviceId);
   }
 }

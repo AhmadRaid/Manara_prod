@@ -8,7 +8,7 @@ import { ActivityLogUserService } from 'src/app/userDashboard/activity-log/activ
 import { Provider } from 'src/schemas/serviceProvider.schema';
 
 @Injectable()
-export class ServiceAdminService {
+export class ServiceAdminService {   
   constructor(
     @InjectModel(Service.name) private serviceModel: Model<Service>,
     @InjectModel(Provider.name) private providerModel: Model<Provider>,

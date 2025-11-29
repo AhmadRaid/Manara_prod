@@ -11,6 +11,7 @@ import {
   ActivityLogSchema,
 } from 'src/schemas/activity-log.schema';
 import { Order, OrderSchema } from 'src/schemas/order.schema';
+import { AzureStorageService } from 'src/app/site/azure-storage/azure-storage.service';
 
 @Module({
   imports: [
@@ -21,7 +22,7 @@ import { Order, OrderSchema } from 'src/schemas/order.schema';
       { name: Order.name, schema: OrderSchema },
     ]),
   ],
-  providers: [ProviderService, ServiceProviderAdminService],
+  providers: [ProviderService, ServiceProviderAdminService,AzureStorageService],
   controllers: [ProviderController, ServiceProviderAdminController],
   exports: [ServiceProviderAdminService],
 })

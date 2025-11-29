@@ -2,6 +2,7 @@ import {
   BadRequestException,
   Body,
   Controller,
+  Delete,
   Get,
   Param,
   Patch,
@@ -16,94 +17,76 @@ import { JwtAuthAdminGuard } from 'src/common/guards/jwtAuthAdminGuard';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { generateUploadConfig } from 'src/config/upload.file.config';
 import { CreateServiceDto } from '../service/dto/create-service.dto';
+import { AzureStorageService } from 'src/app/site/azure-storage/azure-storage.service';
+import { CreateServiceProviderDto } from './dto/create-service-provider.dto';
+import { UpdateServiceProviderDto } from './dto/update-service-provider.dto';
 
 @Controller('admin/service-provider')
 @UseGuards(JwtAuthAdminGuard)
 export class ServiceProviderAdminController {
   constructor(
     private readonly serviceProviderService: ServiceProviderAdminService,
+    private readonly azureStorageService: AzureStorageService,
   ) {}
 
+  // جلب بروفايل مزود الخدمة
+  @Get('profile/:providerId')
+  async getProfile(@Param('providerId') providerId: string) {
+    return this.serviceProviderService.profile(providerId);
+  }
+
+  // تحديث بيانات مزود الخدمة
+  @Patch('update/:providerId')
+  @UseInterceptors(FileInterceptor('barCodeImage'))
+  async updateProvider(
+    @Param('providerId') providerId: string,
+    @Body() updateServiceProviderDto: UpdateServiceProviderDto,
+    @UploadedFile() barCodeImage: Express.Multer.File,
+  ) {
+    let barCodeImageUrl: string | undefined;
+    if (barCodeImage) {
+      barCodeImageUrl = await this.azureStorageService.uploadFile(
+        barCodeImage.buffer,
+        barCodeImage.originalname,
+        barCodeImage.mimetype,
+      );
+    }
+
+    const finalProviderData: any = {
+      ...(updateServiceProviderDto as any),
+      bankBarcode: barCodeImageUrl,
+    };
+
+    return this.serviceProviderService.update(providerId, finalProviderData);
+  }
+
+  // حذف مزود الخدمة (حذف منطقي)
+  @Delete('delete/:providerId')
+  async deleteProvider(@Param('providerId') providerId: string) {
+    return this.serviceProviderService.delete(providerId);
+  }
+
   @Post()
-  @UseInterceptors(FileInterceptor('image', generateUploadConfig('services')))
-  async create(@UploadedFile() image: Express.Multer.File, @Body() body: any) {
-    // 1. الحقول التي هي كائنات مفردة متعددة اللغات (تأتي كسلسلة JSON)
-    const singleJsonFields = ['title', 'description']; // 2. الحقول التي هي مصفوفات متعددة اللغات (تأتي كمصفوفة من سلاسل JSON)
+  @UseInterceptors(FileInterceptor('barCodeImage'))
+  async create(
+    @UploadedFile() barCodeImage: Express.Multer.File,
+    @Body() createServiceProviderDto: CreateServiceProviderDto,
+  ) {
+    let barCodeImageUrl: string | undefined;
+    if (barCodeImage) {
+      barCodeImageUrl = await this.azureStorageService.uploadFile(
+        barCodeImage.buffer,
+        barCodeImage.originalname,
+        barCodeImage.mimetype,
+      );
+    }
 
-    const jsonArrayFields = [
-      'featureServices',
-      'filesNeeded',
-      'stepGetService',
-    ]; // 3. حقول الأرقام التي قد تأتي كسلسلة أو مصفوفة سلاسل (مثل Min/MaxCompletionDays)
+    const finalProviderData: any = {
+      ...(createServiceProviderDto as any),
+      bankBarcode: barCodeImageUrl,
+    };
 
-    const numberFields = [
-      'GeneralRate',
-      'rate',
-      'countRate',
-      'loyaltyPoints',
-      'countUsers',
-      'price',
-      'MinCompletionDays',
-      'MaxCompletionDays',
-      'countOrders',
-    ]; // --- 1. معالجة حقول JSON الفردية (Title, Description) ---
-
-    for (const field of singleJsonFields) {
-      let value = body[field];
-      if (typeof value === 'string') {
-        try {
-          body[field] = JSON.parse(value);
-        } catch (e) {
-          throw new BadRequestException(
-            `Invalid JSON format for field: ${field}`,
-          );
-        }
-      }
-    } // --- 2. معالجة حقول المصفوفات JSON (تحليل كل عنصر داخل المصفوفة) ---
-
-    for (const field of jsonArrayFields) {
-      let value = body[field];
-      if (!value) continue; // 2.1. إذا كانت القيمة مصفوفة (كما أظهرت بياناتك)
-
-      if (Array.isArray(value)) {
-        try {
-          // نقوم بالتكرار على كل عنصر ونحلل نص JSON فيه
-          body[field] = value.map((item) => {
-            if (typeof item === 'string') {
-              return JSON.parse(item); // 🔑 هذا هو مفتاح الحل
-            }
-            return item;
-          });
-        } catch (e) {
-          throw new BadRequestException(
-            `Invalid JSON element inside array for field: ${field}`,
-          );
-        }
-      } // 2.2. معالجة السيناريو القديم: إذا وصل ككائن مفرد يجب لفه (كتغطية)
-      else if (typeof value === 'object' && value !== null) {
-        body[field] = [value];
-      }
-    } // --- 3. معالجة حقول الأرقام ---
-
-    for (const field of numberFields) {
-      let value = body[field];
-      if (!value) continue; // إذا وصلت كمصفوفة (كما في Min/MaxCompletionDays)، نأخذ القيمة الأولى
-
-      if (Array.isArray(value)) {
-        value = value[0];
-      } // إذا كانت قيمة نصية، نحولها إلى رقم
-
-      if (typeof value === 'string') {
-        const parsedNumber = parseFloat(value);
-        if (!isNaN(parsedNumber)) {
-          body[field] = parsedNumber;
-        } else {
-          body[field] = value; // يترك القيمة لتفشل في Validation إذا لم تكن رقماً صالحاً
-        }
-      }
-    } // إرجاع الـ Body المنظف ليتم التحقق منه بواسطة Class-Validator
-
-    return this.serviceProviderService.create(body as CreateServiceDto, image);
+    return this.serviceProviderService.create(finalProviderData);
   }
 
   // جلب كل Service Providers

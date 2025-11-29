@@ -17,6 +17,15 @@ export class Provider {
   @Prop({ required: true, unique: true })
   phone: string;
 
+  @Prop({ type: String })
+  bankAccountNumber: string; // رقم الحساب البنكي
+
+  // @Prop({ type: String })
+  // bankName: string; // اسم البنك
+
+  @Prop({ type: String })
+  bankBarcode: string; // رابط صورة الباركود البنكي
+
   @Prop({ type: [Types.ObjectId], ref: 'Service', default: [] })
   services: Types.ObjectId[];
 
@@ -38,8 +47,6 @@ export class Provider {
 
   @Prop({ type: Boolean, default: false })
   isDeleted: boolean;
-  
-
 }
 
 export const ProviderSchema = SchemaFactory.createForClass(Provider);
