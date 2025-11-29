@@ -15,6 +15,71 @@ export interface FindAllQuery {
 
 @Injectable()
 export class OrderAdminService {
+  // جلب جميع الطلبات التي بها حوالة بنكية بانتظار الموافقة
+  async getPendingBankTransfers() {
+    return this.orderModel
+      .find({
+        paymentMethod: 'bank_transfer',
+        bankTransferStatus: 'pending',
+        isDeleted: false,
+      })
+      .populate('user service')
+      .exec();
+  }
+
+  // الموافقة على حوالة بنكية
+  async approveBankTransfer(orderId: string) {
+    const order = await this.orderModel.findById(orderId);
+    if (!order || order.isDeleted)
+      throw new BadRequestException('الطلب غير موجود.');
+    if (order.paymentMethod !== 'bank_transfer')
+      throw new BadRequestException('نوع الطلب ليس حوالة بنكية.');
+    console.log('11111111111', order.bankTransferStatus);
+
+    if (order.bankTransferStatus !== 'pending')
+      throw new BadRequestException('الحالة ليست بانتظار الموافقة.');
+
+    order.bankTransferStatus = 'approved';
+    await order.save();
+    // سجل النشاط للأدمن أو المستخدم
+    await this.activityLogService.logActivity(
+      order.user,
+      { ar: 'تمت الموافقة على الحوالة البنكية', en: 'Bank transfer approved' },
+      {
+        ar: `تمت الموافقة على الحوالة البنكية للطلب رقم ${order.orderNumber}.`,
+        en: `Bank transfer approved for order ${order.orderNumber}.`,
+      },
+      { orderId: order._id, orderNumber: order.orderNumber },
+    );
+    return order;
+  }
+
+  // رفض حوالة بنكية
+  async rejectBankTransfer(orderId: string, reason?: string) {
+    const order = await this.orderModel.findById(orderId);
+    if (!order || order.isDeleted)
+      throw new BadRequestException('الطلب غير موجود.');
+    if (order.paymentMethod !== 'bank_transfer')
+      throw new BadRequestException('نوع الطلب ليس حوالة بنكية.');
+    if (order.bankTransferStatus !== 'pending')
+      throw new BadRequestException('الحالة ليست بانتظار الموافقة.');
+    order.bankTransferStatus = 'rejected';
+    if (reason) {
+      order.bankTransferRejectReason = reason;
+    }
+    await order.save();
+    // سجل النشاط للأدمن أو المستخدم
+    await this.activityLogService.logActivity(
+      order.user,
+      { ar: 'تم رفض الحوالة البنكية', en: 'Bank transfer rejected' },
+      {
+        ar: `تم رفض الحوالة البنكية للطلب رقم ${order.orderNumber}.${reason ? ' سبب الرفض: ' + reason : ''}`,
+        en: `Bank transfer rejected for order ${order.orderNumber}.${reason ? ' Reason: ' + reason : ''}`,
+      },
+      { orderId: order._id, orderNumber: order.orderNumber, reason },
+    );
+    return order;
+  }
   constructor(
     @InjectModel(Order.name) private readonly orderModel: Model<Order>,
     @InjectModel(User.name) private readonly userModel: Model<User>,

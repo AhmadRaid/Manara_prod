@@ -74,6 +74,18 @@ export class Order extends Document {
   @Prop({ type: String, unique: true, index: true })
   orderNumber: string;
 
+  @Prop({ type: String, enum: ['card', 'bank_transfer'] })
+  paymentMethod: string;
+
+  @Prop({ type: String }) // رابط صورة الحوالة البنكية
+  bankTransferReceipt: string;
+
+  @Prop({ type: String }) 
+  bankTransferRejectReason: string;
+
+  @Prop({ type: String, enum: ['pending', 'approved', 'rejected'], default: 'pending' })
+  bankTransferStatus: string;
+
   @Prop({ required: true })
   price: number;
 

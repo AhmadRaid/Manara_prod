@@ -151,11 +151,24 @@ export class OrderSiteService {
     orderId: string,
     dto: UpdateOrderPaymentDto,
     userId: string,
+    bankTransferReceiptUrl: string,
   ): Promise<Order> {
     const order = await this.orderModel.findById(orderId).exec();
     if (!order) throw new NotFoundException('الطلب غير موجود.');
     if (!['step1_review', 'step2_payment'].includes(order.clientStage)) {
       throw new BadRequestException('لا يمكن إتمام الدفع في هذه المرحلة.');
+    }
+
+    let updateData: any = {
+      clientStage: 'step2_payment',
+      status: 'in-progress',
+      paymentMethod: dto.paymentMethod,
+    };
+
+    // إذا كانت طريقة الدفع حوالة بنكية
+    if (dto.paymentMethod === 'bank_transfer') {
+        updateData.bankTransferReceipt = bankTransferReceiptUrl;
+        updateData.bankTransferStatus = 'pending';
     }
 
     const updatedTimeline = (order.timeline || []).map((item) =>
@@ -164,46 +177,45 @@ export class OrderSiteService {
             ...item,
             done: true,
             date: new Date(),
-            notes: `تم الدفع بنجاح عبر ${dto.paymentMethod}.`,
+            notes:
+              dto.paymentMethod === 'bank_transfer'
+                ? 'تم رفع وصل الحوالة البنكية.'
+                : `تم الدفع بنجاح عبر ${dto.paymentMethod}.`,
           }
         : item,
     );
 
-    const updatedOrder = await this.orderModel
-      .findByIdAndUpdate(
-        orderId,
-        {
-          clientStage: 'step2_payment',
-          status: 'in-progress',
-          paymentMethod: dto.paymentMethod,
-          timeline: updatedTimeline,
-        },
-        { new: true },
-      )
-      .exec();
+   const updatedOrder = await this.orderModel
+        .findByIdAndUpdate(orderId, updateData, { new: true })
+        .exec();
 
-    const service = await this.serviceModel
-      .findById(updatedOrder.service)
-      .exec();
+      const service = await this.serviceModel
+        .findById(updatedOrder.service)
+        .exec();
 
     await this.activityLogService.logActivity(
-      updatedOrder.user,
-      { ar: 'تأكيد الدفع', en: 'Payment Confirmed' },
-      {
-        ar: `تم تأكيد دفعة الطلب ${updatedOrder.orderNumber} (${service?.title?.ar || 'الخدمة'})`,
-        en: `Payment confirmed for order ${updatedOrder.orderNumber} (${service?.title?.en || 'Service'})`,
-      },
-      {
-        orderId: updatedOrder._id,
-        orderNumber: updatedOrder.orderNumber,
-        paymentMethod: dto.paymentMethod,
-      },
-    );
-
-    // 🔹 منح نقاط للمستخدم عند إنشاء الطلب
-    const earnedPoints = Math.floor(service.price * 0.05); // مثال: 5% من سعر الخدمة
-
-    if (earnedPoints > 0) {
+        updatedOrder.user,
+        { ar: 'تأكيد الدفع', en: 'Payment Confirmed' },
+        {
+          ar:
+            dto.paymentMethod === 'bank_transfer'
+              ? `تم رفع وصل الحوالة البنكية للطلب ${updatedOrder.orderNumber} (${service?.title?.ar || 'الخدمة'})`
+              : `تم تأكيد دفعة الطلب ${updatedOrder.orderNumber} (${service?.title?.ar || 'الخدمة'})`,
+          en:
+            dto.paymentMethod === 'bank_transfer'
+              ? `Bank transfer receipt uploaded for order ${updatedOrder.orderNumber} (${service?.title?.en || 'Service'})`
+              : `Payment confirmed for order ${updatedOrder.orderNumber} (${service?.title?.en || 'Service'})`,
+        },
+        {
+          orderId: updatedOrder._id,
+          orderNumber: updatedOrder.orderNumber,
+          paymentMethod: dto.paymentMethod,
+          bankTransferReceipt: bankTransferReceiptUrl,
+        }
+      );
+       if (dto.paymentMethod === 'card') {
+        const earnedPoints = Math.floor(service.price * 0.05);
+       if (earnedPoints > 0) {
       await this.pointsHistoryModel.create({
         user: new Types.ObjectId(userId),
         type: 'earn',
@@ -211,6 +223,7 @@ export class OrderSiteService {
         source: 'إنشاء طلب جديد',
         serviceId: service._id,
       });
+      }
 
       // يمكنك أيضًا تسجيلها في سجل النشاط
       await this.activityLogService.logActivity(

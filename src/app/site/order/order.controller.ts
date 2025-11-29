@@ -10,8 +10,12 @@ import {
   UseGuards,
   Req,
   Get,
+  UploadedFile,
 } from '@nestjs/common';
-import { FileFieldsInterceptor } from '@nestjs/platform-express';
+import {
+  FileFieldsInterceptor,
+  FileInterceptor,
+} from '@nestjs/platform-express';
 import { JwtAuthGuard } from 'src/common/guards/jwtAuthGuard';
 import { AuthRequest } from 'src/interfaces/AuthRequest';
 import { OrderSiteService } from './order.service';
@@ -40,15 +44,35 @@ export class OrderSiteController {
 
   // 💰 تحديث الدفع
   @Patch(':orderId/pay')
+  @UseInterceptors(
+    FileInterceptor('bankTransferReceipt', { storage: memoryStorage() }),
+  )
   async updateOrderStep2Payment(
     @Param('orderId') orderId: string,
     @Body() dto: UpdateOrderPaymentDto,
+    @UploadedFile() bankTransferReceipt: Express.Multer.File,
     @Req() req: AuthRequest,
   ) {
+    let receiptFinalUrl: string | undefined;
+    console.log('11111111111', bankTransferReceipt);
+
+    if (bankTransferReceipt) {
+      receiptFinalUrl = await this.azureStorageService.uploadFile(
+        bankTransferReceipt.buffer,
+        bankTransferReceipt.originalname,
+        bankTransferReceipt.mimetype, // ✅ تمرير نوع الملف لحل مشكلة التنزيل
+      );
+    } else {
+      throw new BadRequestException('يجب رفع صورة إيصال الحوالة البنكية.');
+    }
+
+    console.log('2222222222', receiptFinalUrl);
+
     return this.orderService.updateOrderStep2Payment(
       orderId,
       dto,
       req.user._id,
+      receiptFinalUrl,
     );
   }
 
@@ -120,5 +144,4 @@ export class OrderSiteController {
       documents,
     };
   }
-
 }

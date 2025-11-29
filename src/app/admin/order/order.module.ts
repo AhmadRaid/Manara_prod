@@ -18,7 +18,6 @@ import { OrderAdminService } from './order.service';
 import { AzureStorageService } from 'src/app/site/azure-storage/azure-storage.service';
 import { PointsHistory, PointsHistorySchema } from 'src/schemas/pointsHistory.schema';
 import { User, UserSchema } from 'src/schemas/user.schema';
-import { UserModule } from '../user/user.module';
 
 @Module({
   imports: [
