@@ -1,9 +1,10 @@
 import { Controller, Post, Get, Body, Param, UseGuards } from '@nestjs/common';
 import { ChatService } from './chat.service';
 import { JwtAuthGuard } from 'src/common/guards/jwtAuthGuard';
+import { MultiRoleJwtGuard } from 'src/common/guards/multiRoleJwtGuard';
 
 @Controller('dashboard/chats')
-@UseGuards(JwtAuthGuard)
+//@UseGuards(MultiRoleJwtGuard)
 
 export class ChatController {
   constructor(private readonly chatService: ChatService) {}
