@@ -13,6 +13,7 @@ import {
 import { MultilingualStringDto } from 'src/common/dto/multilingual-string.dto';
 
 export class CreateServiceDto {
+
   @IsNotEmpty()
   @IsObject()
   @ValidateNested()
@@ -37,7 +38,7 @@ export class CreateServiceDto {
   @IsMongoId()
   readonly categoryId: string;
 
-  @IsNotEmpty()
+    @IsOptional()
   @IsMongoId()
   readonly providerId: string;
 
@@ -66,15 +67,6 @@ export class CreateServiceDto {
   @IsNotEmpty()
   @IsNumber()
   readonly MaxCompletionDays: Number;
-
-  
-  @IsNotEmpty()
-  @IsString()
-  readonly time: String;
-
-    @IsNotEmpty()
-  @IsString()
-  readonly workingTime: String;
 
   @IsOptional()
   @IsString()

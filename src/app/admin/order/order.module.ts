@@ -15,18 +15,14 @@ import { ActivityLogModule } from 'src/app/admin/activityLog/activity-log.module
 import { Counter, CounterSchema } from 'src/schemas/counter.schema';
 import { OrderAdminController } from './order.controller';
 import { OrderAdminService } from './order.service';
-import { AzureStorageService } from 'src/app/site/azure-storage/azure-storage.service';
-import { PointsHistory, PointsHistorySchema } from 'src/schemas/pointsHistory.schema';
-import { User, UserSchema } from 'src/schemas/user.schema';
+
 
 @Module({
   imports: [
     MongooseModule.forFeature([
       { name: Order.name, schema: OrderSchema },
-      { name: User.name, schema: UserSchema },
       { name: Service.name, schema: ServiceSchema },
       { name: 'Counter', schema: CounterSchema },
-      { name: PointsHistory.name, schema: PointsHistorySchema },
     ]),
     MulterModule.register({
       storage: diskStorage({
@@ -47,12 +43,7 @@ import { User, UserSchema } from 'src/schemas/user.schema';
     OrderSiteController,
     OrderUserDashboardController,
   ],
-  providers: [
-    OrderAdminService,
-    OrderSiteService,
-    OrderUserDashboardService,
-    AzureStorageService,
-  ],
+  providers: [OrderAdminService, OrderSiteService, OrderUserDashboardService],
   exports: [OrderSiteService],
 })
 export class OrderModule {}

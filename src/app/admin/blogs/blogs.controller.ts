@@ -21,17 +21,13 @@ import { generateUploadConfig } from 'src/config/upload.file.config';
 import { CreateBlogDto } from './dto/create-blog.dto';
 import { AuthRequest } from 'src/interfaces/AuthRequest';
 import { JwtAuthAdminGuard } from 'src/common/guards/jwtAuthAdminGuard';
-import { AzureStorageService } from 'src/app/site/azure-storage/azure-storage.service';
 
 @Controller('admin/blogs')
 @UseGuards(JwtAuthAdminGuard)
 export class BlogsAdminController {
-  constructor(
-    private readonly blogAdminService: BlogAdminService,
-    private readonly azureStorageService: AzureStorageService,
-  ) {}
+  constructor(private readonly blogAdminService: BlogAdminService) {}
 
-  @UseInterceptors(FileInterceptor('image'))
+  @UseInterceptors(FileInterceptor('image', generateUploadConfig('blogs')))
   @Post()
   async create(
     @Req() request: AuthRequest,
@@ -51,20 +47,8 @@ export class BlogsAdminController {
       );
     }
 
-    let imageUrl: string | undefined;
-    if (image) {
-      imageUrl = await this.azureStorageService.uploadFile(
-        image.buffer,
-        image.originalname,
-        image.mimetype, // ✅ تمرير نوع الملف لحل مشكلة التنزيل
-      );
-    }
-    const finalDto: any = {
-      ...(createBlogDto as any), // نسخ جميع الخصائص
-      image: imageUrl, // تعيين قيمة 'image' في الكائن الجديد
-    };
-
-    return this.blogAdminService.create(finalDto, request.user._id);
+    const dto: CreateBlogDto = createBlogDto;
+    return this.blogAdminService.create(createBlogDto, request.user._id, image);
   }
 
   @Get()
@@ -88,15 +72,15 @@ export class BlogsAdminController {
     return this.blogAdminService.findById(blogId, lang);
   }
 
-  @UseInterceptors(FileInterceptor('image'))
+  @UseInterceptors(FileInterceptor('image', generateUploadConfig('blogs')))
   @Patch(':blogId')
-  async update(
+  update(
     @Param('blogId') blogId: string,
     @Body() updateBlogDto: any,
     @UploadedFile() image: Express.Multer.File,
     @Req() request: AuthRequest,
   ) {
-    try {
+     try {
       if (typeof updateBlogDto.title === 'string')
         updateBlogDto.title = JSON.parse(updateBlogDto.title);
       if (typeof updateBlogDto.description === 'string')
@@ -109,24 +93,8 @@ export class BlogsAdminController {
       );
     }
 
-    let imageUrl: string | undefined;
-    if (image) {
-      imageUrl = await this.azureStorageService.uploadFile(
-        image.buffer,
-        image.originalname,
-        image.mimetype, // ✅ تمرير نوع الملف لحل مشكلة التنزيل
-      );
-    }
-
-    // ✅ الحل: إنشاء نسخة جديدة إذا كان هناك تعديل في الصورة
-    const finalUpdateDto = imageUrl ? { ...updateBlogDto, image: imageUrl } : updateBlogDto;
-
-    const updateData: any = finalUpdateDto;
-    return this.blogAdminService.update(
-      blogId,
-      updateData,
-      request.user._id,
-    );
+    const updateData: any = updateBlogDto;
+    return this.blogAdminService.update(blogId, updateData, request.user._id, image);
   }
 
   @Delete(':blogId')

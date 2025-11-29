@@ -17,8 +17,6 @@ import { AdminAuthService } from './auth.service';
 import { AuthProviderService } from 'src/app/serviceProvider/auth/auth.service';
 import { AuthProviderController } from 'src/app/serviceProvider/auth/auth.controller';
 import { Provider, ProviderSchema } from 'src/schemas/serviceProvider.schema';
-import { HomeAdminController } from '../home/home.controller';
-import { HomeAdminService } from '../home/home.service';
 
 @Global()
 @Module({
@@ -38,12 +36,12 @@ import { HomeAdminService } from '../home/home.service';
   controllers: [
     AuthController, // المستخدمين
     AdminAuthController, // ✅ الإدمن
-    AuthProviderController,
+    AuthProviderController
   ],
   providers: [
     AuthService, // المستخدمين
     AdminAuthService, // ✅ الإدمن
-    AuthProviderService,
+    AuthProviderService
   ],
   exports: [
     AuthService,

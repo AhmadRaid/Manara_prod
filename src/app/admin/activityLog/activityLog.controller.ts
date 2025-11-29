@@ -5,14 +5,13 @@ import { ActivityLogAdminService } from './activityLog.service';
 export class ActivityLogAdminController {
   constructor(private readonly activityService: ActivityLogAdminService) {}
 
-  // @Get()
-  // async getAll(
-  //   @Query('userId') userId?: string,
-  //   @Query('role') role?: 'user' | 'provider',
-  //   @Query('limit') limit?: number,
-  //   @Query('offset') offset?: number,
-  // @Query('lang') lang?: 'ar' | 'en', // 👈 اللغة المطلوبة
-  // ) {
-  //   return this.activityService.getAllUserActivities({ userId, role, limit, offset },lang);
-  // }
+  @Get()
+  async getAll(
+    @Query('userId') userId?: string,
+    @Query('role') role?: 'user' | 'provider',
+    @Query('limit') limit?: number,
+    @Query('offset') offset?: number,
+  ) {
+    return this.activityService.getAllUserActivities({ userId, role, limit, offset });
+  }
 }

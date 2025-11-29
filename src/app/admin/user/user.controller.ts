@@ -1,4 +1,9 @@
-import { Controller, Get, Param, Query, Req, UseGuards } from '@nestjs/common';
+import {
+  Controller,
+  Get,
+  Req,
+  UseGuards,
+} from '@nestjs/common';
 import { UserService } from './user.service';
 import { AuthRequest } from 'src/interfaces/AuthRequest';
 import { JwtAuthAdminGuard } from 'src/common/guards/jwtAuthAdminGuard';
@@ -14,23 +19,9 @@ export class UserController {
   }
 
   @Get()
-  async getAllUsers() {
-    return this.userService.getAllUsersWithRelations();
-  }
+async getAllUsers() {
+  return this.userService.getAllUsersWithRelations();
+}
 
-  // جلب كل Activity Logs الخاصة ب Provider
-  @Get(':userId/activity-logs')
-  async getUserActivityLogs(
-    @Param('userId') userId: string,
-    @Query('limit') limit?: number,
-    @Query('offset') offset?: number,
-    @Query('lang') lang?: 'ar' | 'en',
-  ) {
-    return this.userService.getUserActivityLogs(
-      userId,
-      lang,
-      limit,
-      offset,
-    );
-  }
+
 }

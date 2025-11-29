@@ -17,7 +17,11 @@ interface TransformedCreateBlogData
 export class BlogAdminService {
   constructor(@InjectModel(Blog.name) private blogModel: Model<Blog>) {}
 
-  async create(createBlogDto: CreateBlogDto, userId: string): Promise<Blog> {
+  async create(
+    createBlogDto: CreateBlogDto,
+    userId: string,
+    image: Express.Multer.File,
+  ): Promise<Blog> {
     const transformedTags = createBlogDto.tags.map(
       (id) => new Types.ObjectId(id as any),
     );
@@ -26,6 +30,9 @@ export class BlogAdminService {
       createdBy: new Types.ObjectId(userId),
       categoryId: new Types.ObjectId(createBlogDto.categoryId as any),
       tags: transformedTags,
+      image: image
+        ? `https://backend-uh6k.onrender.com/${image.path}`
+        : createBlogDto.image || null,
     };
 
     const createdBlog = new this.blogModel(blogData);
@@ -169,9 +176,9 @@ export class BlogAdminService {
       {
         $project: {
           _id: 1,
-          title: 1,
-          description: 1,
-          content: 1,
+          title: { $ifNull: [`$title.${lang}`, `$title.ar`] },
+          description: { $ifNull: [`$description.${lang}`, `$description.ar`] },
+          content: { $ifNull: [`$content.${lang}`, `$content.ar`] },
           image: 1,
           estimateReadTime: 1,
           feature: 1,
@@ -206,6 +213,7 @@ export class BlogAdminService {
     blogId: string,
     updateBlogDto: any,
     userId: string,
+    image?: Express.Multer.File,
   ): Promise<Blog> {
     const blog = await this.blogModel.findById(blogId);
     if (!blog) throw new NotFoundException('Blog not found');
@@ -215,6 +223,11 @@ export class BlogAdminService {
       ? updateBlogDto.tags.map((id) => new Types.ObjectId(id))
       : blog.tags;
 
+    // 🧠 معالجة الصورة (إذا تم رفع صورة جديدة)
+    const imageUrl = image
+      ? `https://backend-uh6k.onrender.com/${image.path}`
+      : updateBlogDto.image || blog.image;
+
     // 🧠 تجهيز بيانات التحديث كما في create()
     const updatedData = {
       ...updateBlogDto,
@@ -223,6 +236,7 @@ export class BlogAdminService {
         ? new Types.ObjectId(updateBlogDto.categoryId)
         : blog.categoryId,
       tags: transformedTags,
+      image: imageUrl,
     };
 
     // 🧱 تنفيذ التحديث

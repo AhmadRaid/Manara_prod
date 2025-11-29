@@ -1,55 +1,35 @@
-import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
+import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model, Types } from 'mongoose';
 import { CreateServiceDto } from './dto/create-service.dto';
 import { FindAllQuery } from 'src/interfaces/FindAllQuery';
 import { Service } from 'src/schemas/service.schema';
-import { ActivityLogUserService } from 'src/app/userDashboard/activity-log/activity-log.service';
-import { Provider } from 'src/schemas/serviceProvider.schema';
 
 @Injectable()
-export class ServiceAdminService {   
+export class ServiceAdminService {
   constructor(
     @InjectModel(Service.name) private serviceModel: Model<Service>,
-    @InjectModel(Provider.name) private providerModel: Model<Provider>,
-        private readonly activityLogService: ActivityLogUserService, // ✅ إضافة هذا
-
   ) {}
 
-async create(createServiceDto: CreateServiceDto) {
-  const serviceData = {
-    ...createServiceDto,
-    categoryId: new Types.ObjectId(createServiceDto.categoryId as any),
-    provider: new Types.ObjectId(createServiceDto.providerId as any),
-  };
+  async create(
+    createServiceDto: CreateServiceDto,
+    image: Express.Multer.File,
+  ): Promise<Service> {
+    const baseUrl = process.env.BASE_URL;
+    // تحويل categoryId إلى ObjectId وإضافة مسار الصورة
+    const serviceData = {
+      ...createServiceDto,
+      categoryId: new Types.ObjectId(createServiceDto.categoryId as any),
+      provider: new Types.ObjectId(createServiceDto.providerId as any),
 
-  const createdService = new this.serviceModel(serviceData);
-  const savedService = await createdService.save();
+      image: image
+        ? `https://backend-uh6k.onrender.com/${image.path}`
+        : createServiceDto.image || null,
+    };
 
-  // ✅ إضافة الـ service إلى الـ provider
-  await this.providerModel.findByIdAndUpdate(
-    savedService.provider,
-    { $push: { services: new Types.ObjectId(savedService._id) } },
-    { new: true },
-  );
-
-  await this.activityLogService.logActivityProvider(
-    savedService.provider, // مزود الخدمة
-    { ar: 'إنشاء خدمة جديدة', en: 'New Service Created' },
-    {
-      ar: `تم إنشاء خدمة جديدة بعنوان "${savedService.title.ar}" بسعر ${savedService.price} ر.س.`,
-      en: `A new service "${savedService.title.en}" has been created with price ${savedService.price} SAR.`,
-    },
-    {
-      serviceId: savedService._id,
-      categoryId: savedService.categoryId,
-      price: savedService.price,
-    },
-  );
-
-  return savedService;
-}
-
+    const createdService = new this.serviceModel(serviceData);
+    return createdService.save();
+  }
 
   async findAll({ limit, offset }: FindAllQuery, lang = 'ar', search?: string) {
     const fallbackLang = 'en';
@@ -84,7 +64,7 @@ async create(createServiceDto: CreateServiceDto) {
     ];
 
     // 3. بناء حقول الإسقاط النهائية (finalProjection)
-    let finalProjection: any = { _id: 1, icon: 1, createdAt: 1 };
+    let finalProjection: any = { _id: 1, icon: 1 };
 
     finalProjection = {
       ...finalProjection,
@@ -170,19 +150,7 @@ async create(createServiceDto: CreateServiceDto) {
                 input: '$featureServices',
                 as: 'item',
                 in: {
-                  title: {
-                    $ifNull: [
-                      `$$item.title.${langKey}`,
-                      `$$item.title.${fallbackLang}`,
-                    ],
-                  },
-                  subtitle: {
-                    $ifNull: [
-                      `$$item.subtitle.${langKey}`,
-                      `$$item.subtitle.${fallbackLang}`,
-                    ],
-                  },
-                  icon: '$$item.icon',
+                  $ifNull: [`$$item.${langKey}`, `$$item.${fallbackLang}`],
                 },
               },
             },
@@ -228,18 +196,21 @@ async create(createServiceDto: CreateServiceDto) {
     };
   }
 
- async findById(id: string, lang = 'ar'): Promise<any> {
-    if (!Types.ObjectId.isValid(id)) {
-      throw new BadRequestException('Invalid service ID');
-    }
+  async findById(id: string, lang = 'ar'): Promise<any> {
+    const fallbackLang = 'en';
+    const langKey = lang === 'en' ? 'en' : 'ar'; // 1. تحديد منطق الترجمة للحقول متعددة اللغات المفردة
 
-    const langKey = lang === 'en' ? 'en' : 'ar';
+    const translatedMultilingualFields = {
+      title: { $ifNull: [`$title.${langKey}`, `$title.${fallbackLang}`] },
+      description: {
+        $ifNull: [`$description.${langKey}`, `$description.${fallbackLang}`],
+      },
+    };
 
     const aggregationPipeline: any[] = [
-      // 1️⃣ مطابقة الخدمة المطلوبة
-      { $match: { _id: new Types.ObjectId(id), isDeleted: false } },
+      { $match: { _id: new Types.ObjectId(id) } }, // 1. مطابقة الخدمة بالـ ID
+      // 2. الربط مع مجموعة الطلبات (orders) لحساب عدد المستخدمين الفريدين
 
-      // 2️⃣ الربط مع الطلبات لحساب عدد المستخدمين الفريدين
       {
         $lookup: {
           from: 'orders',
@@ -253,9 +224,8 @@ async create(createServiceDto: CreateServiceDto) {
           usersCount: { $size: { $setUnion: '$serviceOrders.user' } },
         },
       },
-      { $project: { serviceOrders: 0 } },
+      { $project: { serviceOrders: 0 } }, // 3. الربط مع الفئات (Categories)
 
-      // 3️⃣ الربط مع الفئة (category)
       {
         $lookup: {
           from: 'categories',
@@ -264,178 +234,86 @@ async create(createServiceDto: CreateServiceDto) {
           as: 'category',
         },
       },
-      { $unwind: { path: '$category', preserveNullAndEmptyArrays: true } },
+      { $unwind: { path: '$category', preserveNullAndEmptyArrays: true } }, // 4. تطبيق الترجمة على اسم الفئة
+
       {
         $addFields: {
           'category.name': {
-            $ifNull: [`$category.name.${langKey}`, `$category.name.ar`],
+            $ifNull: [
+              `$category.name.${langKey}`,
+              `$category.name.${fallbackLang}`,
+            ],
           },
         },
-      },
+      }, // 5. الإسقاط النهائي وتطبيق الترجمة على كل الحقول المتعددة اللغات
 
-      // 4️⃣ الربط مع المزود (provider)
-      {
-        $lookup: {
-          from: 'providers',
-          localField: 'provider',
-          foreignField: '_id',
-          as: 'provider',
-          pipeline: [
-            {
-              $project: {
-                _id: 1, // فقط الـ _id بدون أي تفاصيل إضافية
-              },
-            },
-          ],
-        },
-      },
-      { $unwind: { path: '$provider', preserveNullAndEmptyArrays: true } },
-
-      // 5️⃣ إعادة تسمية provider._id إلى providerId
-      {
-        $addFields: {
-          providerId: '$provider._id',
-        },
-      },
-
-      // 6️⃣ حذف كائن provider نفسه (نبقي فقط providerId)
       {
         $project: {
-          provider: 0,
-        },
-      },
+          ...translatedMultilingualFields, // title و description
+          _id: 1,
+          icon: 1,
+          ministry: 1,
+          GeneralRate: 1,
+          rate: 1,
+          countRate: 1,
+          loyaltyPoints: 1,
+          countUsers: 1,
+          price: 1,
+          MinCompletionDays: 1,
+          MaxCompletionDays: 1,
+          image: 1,
+          countOrders: 1,
+          vedio: 1,
+          status: 1,
+          createdAt: 1,
+          updatedAt: 1,
+          usersCount: 1,
+          isMostRequested: 1, // ترجمة حقول المصفوفات المتعددة اللغات
 
-      // 7️⃣ تطبيق الترجمة على الحقول المتعددة اللغات
-      {
-        $addFields: {
-          title: { $ifNull: [`$title.${langKey}`, `$title.ar`] },
-          description: { $ifNull: [`$description.${langKey}`, `$description.ar`] },
-          'featureServices.title': {
+          featureServices: {
             $map: {
               input: '$featureServices',
-              as: 'fs',
-              in: { $ifNull: [`$$fs.title.${langKey}`, `$$fs.title.ar`] },
-            },
-          },
-          'featureServices.subtitle': {
-            $map: {
-              input: '$featureServices',
-              as: 'fs',
-              in: { $ifNull: [`$$fs.subtitle.${langKey}`, `$$fs.subtitle.ar`] },
+              as: 'item',
+              in: {
+                $ifNull: [`$$item.${langKey}`, `$$item.${fallbackLang}`],
+              },
             },
           },
           filesNeeded: {
             $map: {
               input: '$filesNeeded',
-              as: 'file',
-              in: { $ifNull: [`$$file.${langKey}`, `$$file.ar`] },
+              as: 'item',
+              in: {
+                $ifNull: [`$$item.${langKey}`, `$$item.${fallbackLang}`],
+              },
             },
           },
           stepGetService: {
             $map: {
               input: '$stepGetService',
-              as: 'step',
-              in: { $ifNull: [`$$step.${langKey}`, `$$step.ar`] },
-            },
-          },
-        },
-      },
-    ];
-
-    const result = await this.serviceModel.aggregate(aggregationPipeline).exec();
-
-    if (!result || result.length === 0) {
-      throw new NotFoundException('Service not found');
-    }
-
-    return result[0];
-  }
-
-   async findByIdForEditPage(id: string, lang = 'ar'): Promise<any> {
-    if (!Types.ObjectId.isValid(id)) {
-      throw new BadRequestException('Invalid service ID');
-    }
-
-    const langKey = lang === 'en' ? 'en' : 'ar';
-
-    const aggregationPipeline: any[] = [
-      // 1️⃣ مطابقة الخدمة المطلوبة
-      { $match: { _id: new Types.ObjectId(id), isDeleted: false } },
-
-      // 2️⃣ الربط مع الطلبات لحساب عدد المستخدمين الفريدين
-      {
-        $lookup: {
-          from: 'orders',
-          localField: '_id',
-          foreignField: 'service',
-          as: 'serviceOrders',
-        },
-      },
-      {
-        $addFields: {
-          usersCount: { $size: { $setUnion: '$serviceOrders.user' } },
-        },
-      },
-      { $project: { serviceOrders: 0 } },
-
-      // 3️⃣ الربط مع الفئة (category)
-      {
-        $lookup: {
-          from: 'categories',
-          localField: 'categoryId',
-          foreignField: '_id',
-          as: 'category',
-        },
-      },
-      { $unwind: { path: '$category', preserveNullAndEmptyArrays: true } },
-      {
-        $addFields: {
-          'category.name': {
-            $ifNull: [`$category.name.${langKey}`, `$category.name.ar`],
-          },
-        },
-      },
-
-      // 4️⃣ الربط مع المزود (provider)
-      {
-        $lookup: {
-          from: 'providers',
-          localField: 'provider',
-          foreignField: '_id',
-          as: 'provider',
-          pipeline: [
-            {
-              $project: {
-                _id: 1, // فقط الـ _id بدون أي تفاصيل إضافية
+              as: 'item',
+              in: {
+                $ifNull: [`$$item.${langKey}`, `$$item.${fallbackLang}`],
               },
             },
-          ],
+          }, // تضمين تفاصيل الفئة المترجمة
+          category: {
+            _id: '$category._id',
+            name: '$category.name',
+            icon: '$category.icon',
+          },
         },
       },
-      { $unwind: { path: '$provider', preserveNullAndEmptyArrays: true } },
-
-      // 5️⃣ إعادة تسمية provider._id إلى providerId
-      {
-        $addFields: {
-          providerId: '$provider._id',
-        },
-      },
-
-      // 6️⃣ حذف كائن provider نفسه (نبقي فقط providerId)
-      {
-        $project: {
-          provider: 0,
-        },
-      }, 
     ];
 
-    const result = await this.serviceModel.aggregate(aggregationPipeline).exec();
-
-    if (!result || result.length === 0) {
+    const service = await this.serviceModel
+      .aggregate(aggregationPipeline)
+      .exec();
+    if (!service || service.length === 0) {
       throw new NotFoundException('Service not found');
     }
 
-    return result[0];
+    return service[0];
   }
 
   async update(id: string, data: any): Promise<Service> {
