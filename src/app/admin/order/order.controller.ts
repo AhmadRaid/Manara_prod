@@ -13,8 +13,27 @@ import { JwtAuthAdminGuard } from 'src/common/guards/jwtAuthAdminGuard';
 
 @Controller('admin/orders')
 @UseGuards(JwtAuthAdminGuard)
-
 export class OrderAdminController {
+  // جلب جميع الطلبات التي بها حوالة بنكية بانتظار الموافقة
+  @Get('bank-transfers/pending')
+  async getPendingBankTransfers() {
+    return this.orderService.getPendingBankTransfers();
+  }
+
+  // الموافقة على حوالة بنكية
+  @Patch(':orderId/bank-transfer/approve')
+  async approveBankTransfer(@Param('orderId') orderId: string) {
+    return this.orderService.approveBankTransfer(orderId);
+  }
+
+  // رفض حوالة بنكية
+  @Patch(':orderId/bank-transfer/reject')
+  async rejectBankTransfer(
+    @Param('orderId') orderId: string,
+    @Body('reason') reason?: string,
+  ) {
+    return this.orderService.rejectBankTransfer(orderId, reason);
+  }
   constructor(private readonly orderService: OrderAdminService) {}
 
   @Get()
@@ -48,5 +67,43 @@ export class OrderAdminController {
       status,
       notes,
     );
+  }
+
+  @Get('user/:userId')
+  findOrdersByUser(
+    @Param('userId') userId: string,
+    @Query('limit') limit?: number,
+    @Query('offset') offset?: number,
+    @Query('lang') lang?: string,
+  ) {
+    return this.orderService.findOrdersByUserOrProvider(
+      { userId, limit, offset },
+      lang,
+    );
+  }
+
+  @Get('provider/:providerId')
+  findOrdersByProvider(
+    @Param('providerId') providerId: string,
+    @Query('limit') limit?: number,
+    @Query('offset') offset?: number,
+    @Query('lang') lang?: string,
+  ) {
+    return this.orderService.findOrdersByUserOrProvider(
+      { providerId, limit, offset },
+      lang,
+    );
+  }
+
+  // ✅ Dashboard for User
+  @Get('user/:userId/dashboard')
+  getUserDashboard(@Param('userId') userId: string) {
+    return this.orderService.getUserDashboard(userId);
+  }
+
+  // ✅ Dashboard for Provider
+  @Get('provider/:providerId/dashboard')
+  getProviderDashboard(@Param('providerId') providerId: string) {
+    return this.orderService.getProviderDashboard(providerId);
   }
 }
