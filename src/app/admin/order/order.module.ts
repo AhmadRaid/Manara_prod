@@ -15,7 +15,11 @@ import { ActivityLogModule } from 'src/app/admin/activityLog/activity-log.module
 import { Counter, CounterSchema } from 'src/schemas/counter.schema';
 import { OrderAdminController } from './order.controller';
 import { OrderAdminService } from './order.service';
-
+import {
+  PointsHistory,
+  PointsHistorySchema,
+} from 'src/schemas/pointsHistory.schema';
+import { AzureStorageService } from 'src/app/site/azure-storage/azure-storage.service';
 
 @Module({
   imports: [
@@ -23,6 +27,7 @@ import { OrderAdminService } from './order.service';
       { name: Order.name, schema: OrderSchema },
       { name: Service.name, schema: ServiceSchema },
       { name: 'Counter', schema: CounterSchema },
+      { name: PointsHistory.name, schema: PointsHistorySchema },
     ]),
     MulterModule.register({
       storage: diskStorage({
@@ -42,8 +47,9 @@ import { OrderAdminService } from './order.service';
     OrderAdminController,
     OrderSiteController,
     OrderUserDashboardController,
+    
   ],
-  providers: [OrderAdminService, OrderSiteService, OrderUserDashboardService],
+  providers: [OrderAdminService, OrderSiteService, OrderUserDashboardService,AzureStorageService],
   exports: [OrderSiteService],
 })
 export class OrderModule {}
