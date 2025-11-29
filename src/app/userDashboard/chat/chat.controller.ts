@@ -2,10 +2,10 @@ import { Controller, Post, Get, Body, Param, UseGuards } from '@nestjs/common';
 import { ChatService } from './chat.service';
 import { JwtAuthGuard } from 'src/common/guards/jwtAuthGuard';
 import { MultiRoleJwtGuard } from 'src/common/guards/multiRoleJwtGuard';
+import { JwtAuthAdminGuard } from 'src/common/guards/jwtAuthAdminGuard';
 
 @Controller('dashboard/chats')
 //@UseGuards(MultiRoleJwtGuard)
-
 export class ChatController {
   constructor(private readonly chatService: ChatService) {}
 
@@ -56,5 +56,11 @@ export class ChatController {
   @Get('provider/:providerId')
   async getChatsForProvider(@Param('providerId') providerId: string) {
     return this.chatService.getChatsForProvider(providerId);
+  }
+
+  @UseGuards(JwtAuthAdminGuard)
+  @Get(':orderId/messages')
+  async getMessagesAsAdmin(@Param('orderId') orderId: string) {
+    return this.chatService.getMessagesByOrderAsAdmin(orderId);
   }
 }

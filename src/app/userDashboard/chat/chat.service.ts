@@ -177,6 +177,65 @@ export class ChatService {
     return messages;
   }
 
+   async getMessagesByOrderAsAdmin(orderId: string) {
+    if (!Types.ObjectId.isValid(orderId)) {
+      throw new BadRequestException('رقم الطلب غير صالح.');
+    }
+
+    const chat = await this.chatModel.findOne({
+      order: new Types.ObjectId(orderId),
+    });
+    if (!chat) return 'لا توجد محادثة لهذا الطلب.';
+
+    const chatId = chat._id as Types.ObjectId;
+
+    const messages = await this.messageModel.aggregate([
+      { $match: { chat: chatId } },
+      {
+        $lookup: {
+          from: 'users',
+          localField: 'sender',
+          foreignField: '_id',
+          as: 'userSender',
+        },
+      },
+      {
+        $lookup: {
+          from: 'providers',
+          localField: 'sender',
+          foreignField: '_id',
+          as: 'providerSender',
+        },
+      },
+      {
+        $addFields: {
+          senderInfo: {
+            $cond: [
+              { $eq: ['$senderType', 'User'] },
+              { $arrayElemAt: ['$userSender', 0] },
+              { $arrayElemAt: ['$providerSender', 0] },
+            ],
+          },
+        },
+      },
+      {
+        $project: {
+          _id: 1,
+          content: 1,
+          isRead: 1,
+          createdAt: 1,
+          senderType: 1,
+          'senderInfo._id': 1,
+          'senderInfo.fullName': 1,
+          'senderInfo.email': 1,
+        },
+      },
+      { $sort: { createdAt: 1 } },
+    ]);
+
+    return messages;
+  }
+
   // ✅ تحديد جميع الرسائل كمقروءة
   async markMessagesAsRead(orderId: string, readerType: 'User' | 'Provider') {
     const chat = await this.chatModel.findOne({
