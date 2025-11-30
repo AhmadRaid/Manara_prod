@@ -72,10 +72,10 @@ export class Order extends Document {
   @Prop({ type: String, unique: true, index: true })
   orderNumber: string;
 
-  @Prop({ type: String, enum: ['card', 'bank_transfer'] })
+  @Prop({ type: String, enum: ['card', 'bank_transfer','points'] })
   paymentMethod: string;
 
-  @Prop({ type: String }) // رابط صورة الحوالة البنكية
+  @Prop({ type: String })  
   bankTransferReceipt: string;
 
   @Prop({ type: String })

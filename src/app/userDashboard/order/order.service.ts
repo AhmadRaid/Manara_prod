@@ -234,7 +234,6 @@ export class OrderUserDashboardService {
         const requiredPoints =
           service.loyaltyPoints || Math.floor(service.price);
 
-        console.log('11111111111', requiredPoints, user.loyaltyPoints);
 
         if (user.loyaltyPoints < requiredPoints) {
           throw new BadRequestException('النقاط غير كافية.');
