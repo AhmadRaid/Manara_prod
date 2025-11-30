@@ -168,6 +168,7 @@ export class OrderUserDashboardService {
           timeline: 1,
           documentsUrl: 1,
           totalFiles: 1,
+          notificationsEnabled: 1,
           approvedFilesCount: 1,
           messagesCount: 1,
           unreadMessagesCount: 1,
